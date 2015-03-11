@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import os
 import sqlite3
-from flask import Flask, request, session, g, redirect, url_for, abort, render_template, flash
+from flask import Flask, request, session, g, redirect, url_for, render_template, flash
 
 app = Flask(__name__)
 
@@ -53,7 +53,7 @@ def show_entries():
     db = get_db()
     cur = db.execute('SELECT username FROM users')
     entries = cur.fetchall()
-    return render_template('show_entries.html', entries=entries)
+    return render_template('index.html', entries=entries)
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -67,7 +67,7 @@ def login():
         else:
             session['logged_in'] = True
             flash('You were logged in')
-            return redirect(url_for('show_entries'))
+            return redirect(url_for('index'))
     return render_template('login.html', error=error)
     
 @app.route('/debug')
@@ -80,7 +80,7 @@ def debug():
 def logout():
     session.pop('logged_in', None)
     flash('You were logged out')
-    return redirect(url_for('show_entries'))
+    return redirect(url_for('index'))
     
 if __name__ == "__main__":
     init_db()

@@ -5,6 +5,10 @@ __pycache__/
 # C extensions
 *.so
 
+# Spyder files
+.spyderproject
+.spyderworkspace
+
 # Distribution / packaging
 .Python
 env/

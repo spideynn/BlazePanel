@@ -1,0 +1,25 @@
+{% extends "layout.html" %}
+
+{% block body %}
+
+<!-- TODO: Reimplement this for adding servers in another HTML file, once server creation is started on.
+{% if session.logged_in %}
+<form action="{{ url_for('add_entry') }}" method="post" class="add-entry">
+<dl>
+<dt>Server ID (SID):
+<dd><input type="text" size="30" name="title">
+<dt>Jartype:
+<dd><textarea name="text" rows="5" cols="40"></textarea>
+<dd><input type="submit" value="Share">
+</dl>
+</form>
+{% endif %} -->
+
+    <ul class="entries"> <!-- This will most likely fail with the new db system! -->
+        {% for entry in entries %}
+            <li><h2>{{ entry.sid }}</h2>{{ entry.jar|safe }}
+        {% else %}
+            <li><em>No servers yet!</em>
+        {% endfor %}
+    </ul>
+{% endblock %}
