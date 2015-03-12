@@ -49,20 +49,17 @@ def close_db(error):
         g.sqlite_db.close()
 
 @app.route('/')
-def show_entries():
-    db = get_db()
-    cur = db.execute('SELECT username FROM users')
-    entries = cur.fetchall()
-    return render_template('index.html', entries=entries)
+def index():
+    return render_template('index.html')
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     db = get_db().cursor()
     error = None
     if request.method == 'POST':
-        if request.form['username'] != db.execute('SELECT username FROM users WHERE username=?', (request.form['username'],)).fetchone():
-            error = 'Invalid username'
-        elif request.form['password'] != db.execute('SELECT password FROM users WHERE username=? AND password=?', (request.form['username'], request.form['password'],)).fetchone():
+        if request.form['username'] != db.execute('SELECT username FROM users WHERE username=?', (request.form['username'],)).fetchone()['username']:
+            error = 'Invalid username.'
+        elif request.form['password'] != db.execute('SELECT password FROM users WHERE username=? AND password=?', (request.form['username'], request.form['password'],)).fetchone()['password']:
             error = 'Invalid password'
         else:
             session['logged_in'] = True
@@ -73,7 +70,7 @@ def login():
 @app.route('/debug')
 def debug():
     db = get_db().cursor()
-    value = db.execute('SELECT username FROM users WHERE username="spideynn"').fetchone()
+    value = db.execute('SELECT username FROM users WHERE username=?',("spideynn",)).fetchone()
     return value[0]
 
 @app.route('/logout')
