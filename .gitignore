@@ -10,6 +10,7 @@ __pycache__/
 .spyderworkspace
 
 # Distribution / packaging
+data/*.*
 .Python
 env/
 build/

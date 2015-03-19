@@ -6,8 +6,9 @@
     <div class="page">
         <h1>BlazeGoat Panel</h1>
         <div class="nav">
-
         {% if not session.logged_in %}
+            <a href="{{ url_for('register') }}">Sign Up</a>
+            or
             <a href="{{ url_for('login') }}">Log In</a>
         {% else %}
             <a href="{{ url_for('logout') }}">Log Out</a>

@@ -3,8 +3,8 @@
 {% block body %}
 
     <ul class="entries"> <!-- This will most likely fail with the new db system! -->
-        {% for entry in entries %}
-            <li><h2>{{ entry.sid }}</h2>{{ entry.jar|safe }}
+        {% for server in servers %}
+            <li><h2>{{ server.sid }}</h2>{{ server.jar }}
         {% else %}
             <li><em>No servers yet!</em>
         {% endfor %}
