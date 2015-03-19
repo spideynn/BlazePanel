@@ -10,7 +10,7 @@ __pycache__/
 .spyderworkspace
 
 # Distribution / packaging
-data/*.*
+data/blazegoat.db
 .Python
 env/
 build/
