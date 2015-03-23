@@ -1,0 +1,22 @@
+{% extends "layout.html" %}
+
+{% block body %}
+
+    <h2>Create Server</h2>
+    {% if error %}<p class="error"><strong>Error:</strong> {{ error }}{% endif %}
+
+    <form action="create" method="post">
+    <dl>
+        <dt>Server Name:
+        <dd><input type="text" name="servername">
+
+        <dt>Jartype:
+        <dd><select>
+            <option value="spigot">Spigot</option>
+            </select>
+        <br>
+
+        <dd><input type="submit" value="Create Server">
+    </dl>
+
+{% endblock %}
