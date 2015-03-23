@@ -2,7 +2,10 @@
 
 {% block body %}
 
-    <ul class="entries"> <!-- This will most likely fail with the new db system! -->
+    <ul class="entries">
+		{% if not session.logged_in %}
+		<a href="servers/create">Create Server</a>
+		{% endif %}
         {% for server in servers %}
             <li><h2>{{ server.sid }}</h2>{{ server.jar }}
         {% else %}

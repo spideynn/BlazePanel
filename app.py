@@ -2,8 +2,6 @@
 import os
 import sqlite3
 from flask import Flask, request, session, g, redirect, url_for, render_template, flash
-import getpass
-import base64
 import easygui
 
 app = Flask(__name__)
@@ -35,6 +33,7 @@ def decrypt(key, encryped):
     return ''.join(msg)
 ### END ENCRYPTED PASSWORDS ###
 
+### START DATABASE SETUP AND DETECTION ###
 def connect_db(): # Connect to the database specified in the config array.
     rv = sqlite3.connect(app.config['DATABASE'])
     rv.row_factory = sqlite3.Row
@@ -70,6 +69,7 @@ def init_db(): # Initialize database if it doesn't exist.
         db.commit()
         db.close()
         print("Sucessfully created database.")
+### END DATABASE SETUP AND DETECTION ###
 
 def get_db(): # Gets the database from the config array.
     if not hasattr(g, 'sqlite_db'):
@@ -97,6 +97,7 @@ def login():
                 error = 'Invalid password'
             else:
                 session['logged_in'] = True # Set the logged in cookie.
+                session['username'] = request.form['username']
                 flash('You were logged in')
                 return redirect(url_for('index'))
         except TypeError:
@@ -114,7 +115,7 @@ def register():
             error =  'Your password must be eight characters or longer.'
         else: # Attempt to insert the user
             try:
-                db.cursor().execute('INSERT INTO users (username, email, password, rank) VALUES (?, ?, ?, 1, 0)', 
+                db.cursor().execute('INSERT INTO users (username, email, password, rank, tempPass) VALUES (?, ?, ?, 1, 0)', 
                            [request.form['username'], request.form['email'], encrypt(SECRET_KEY, request.form['password'])])
                 db.commit()
             except sqlite3.IntegrityError: # Username or email exists.
@@ -124,16 +125,45 @@ def register():
             return redirect(url_for('index'))
     return render_template('register.html', error=error)
     
-@app.route('/servers/<sid>', methods=['GET', 'POST'])
+@app.route('/users/changepass', methods=['GET','POST'])
+def changepass():
+    db = get_db()
+    error = None
+    if request.method == '':
+        if request.form['oldpassword'] != decrypt(SECRET_KEY, db.execute('SELECT password FROM users WHERE username=?', (request.form['username'],)).fetchone()['password']):
+            error = 'Your old password is incorrect.'
+        if request.form['newpassword'] != request.form['confirmpassword']:
+            error = 'Your new passwords do not match.'
+        if request.form['newpassword'] == request.form['confirmpassword']:
+            db.cursor().execute('UPDATE users SET password=? WHERE username=?', encrypt(SECRET_KEY, request.form['newpassword']), session['username'],)
+    return render_template('usercp/changepass.html', error=error)
+@app.route('/servers/')
 def servers():
     db = get_db()
     error = None
-    return render_template('servers.html', error=error)
+    return render_template('servercp/serverindex.html', error=error)
+    
+@app.route('/servers/create', methods=['GET', 'POST'])
+def createServer():
+    db = get_db()
+    error = None
+    if request.method == 'POST':
+        db.cursor().execute('INSERT INTO servers (sid, owner, jartype) VALUES (?,?,?)', [1, session['username'], request.form['jartype'] == "Spigot" if "spigot" else "nothing"])
+    return render_template('servercp/createserver.html', error=error)
+    
+@app.route('/users/<username>')
+def userPanel(username):
+    db = get_db()
+    error = None
+    cur = db.execute('select owner, sid from servers order by id desc')
+    servers = [dict(owner=row[0], sid=row[1]) for row in cur.fetchall()]
+    return render_template('usercp/userinfo.html', error=error, servers=servers)
 
 @app.route('/logout')
 def logout():
     session.pop('logged_in', None) # Pop the session, logging out the user.
-    flash('You were logged out')
+    session.pop('username', None) # Pop the username session cookie
+    flash('You were logged out.')
     return redirect(url_for('index'))
     
 if __name__ == "__main__":
