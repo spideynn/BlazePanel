@@ -10,12 +10,13 @@ app = Flask(__name__)
 SECRET_KEY='8v0w9e8RNWEVRW90e8rnvWER9837R' # Match this with the secret key below.
 app.config.update(dict(
     DATABASE=os.path.join('data/', 'blazegoat.db'),
+    STATIC_FOLDER='static/',
     DEBUG=True,
     SECRET_KEY='8v0w9e8RNWEVRW90e8rnvWER9837R'
 ))
 ### EDIT ABOVE HERE ###
 
-### ENCRYPT PASSWORDS ###
+### ENCRYPTED PASSWORDS [using bcrypt-utils]###
 def encrypt(key, msg):
     encryped = []
     for i, c in enumerate(msg):
@@ -54,15 +55,15 @@ def init_db(): # Initialize database if it doesn't exist.
         db = sqlite3.connect('data/blazegoat.db')
         
         cursor = db.cursor() # Create the users table.
-        cursor.execute('PRAGMA secure_delete = "1"') # Undeletable users and server data, preventing stolen data.
+        cursor.execute('PRAGMA secure_delete = "1"') # Undeletable users and server data, preventing stolen data like usernames and passwords.
         
         cursor.execute('''
         CREATE TABLE users(id INTEGER PRIMARY KEY, username TEXT UNIQUE,
         email TEXT UNIQUE, password TEXT, rank INT, tempPass INTEGER)
         ''') # Create the servers database.
         cursor.execute('''
-        CREATE TABLE servers(id INTEGER PRIMARY KEY, sid INTEGER UNIQUE,
-        owner TEXT, jar TEXT)
+        CREATE TABLE servers(sid INTEGER PRIMARY KEY AUTOINCREMENT UNIQUE, name TEXT,
+        owner TEXT, jartype TEXT)
         ''')
         db.commit()
         cursor.execute('INSERT INTO users (username, email, password, rank, tempPass) VALUES (?, ?, ?, 4, 0)', (username, email, password))
@@ -71,11 +72,33 @@ def init_db(): # Initialize database if it doesn't exist.
         print("Sucessfully created database.")
 ### END DATABASE SETUP AND DETECTION ###
 
-def get_db(): # Gets the database from the config array.
+def get_db(): # Gets the database from the config array, connects, and returns the connection item.
     if not hasattr(g, 'sqlite_db'):
         g.sqlite_db = connect_db()
     return g.sqlite_db
 
+### ERROR HANDLERS ###
+@app.errorhandler(404)
+def page_not_found(e):
+    return render_template('errors/404.html'), 404
+
+@app.errorhandler(410)
+def page_gone(e):
+    return render_template('errors/410.html'), 410
+
+@app.errorhandler(403)
+def page_no_access(e):
+    return render_template('errors/403.html'), 403
+
+@app.errorhandler(500)
+def page_error(e):
+    return render_template('errors/500.html'), 500
+    
+@app.errorhandler(400)
+def page_bad_request(e):
+    return render_template('errors/400.html'), 400
+### END ERROR HANDLERS ###
+    
 @app.teardown_appcontext
 def close_db(error): # On application close, close the database normally, as to not break the db.
     if hasattr(g, 'sqlite_db'):
@@ -97,7 +120,7 @@ def login():
                 error = 'Invalid password'
             else:
                 session['logged_in'] = True # Set the logged in cookie.
-                session['username'] = request.form['username']
+                session['username'] = request.form['username'] # Store the username as a session cookie
                 flash('You were logged in')
                 return redirect(url_for('index'))
         except TypeError:
@@ -111,6 +134,8 @@ def register():
     if request.method == 'POST':
         if request.form['password'] != request.form['confirmpassword']: # Doesn't match
             error = 'Your passwords do not match.'
+        if request.form['username'] == 'admin' or 'administrator':
+            error = 'That username is reserved.'
         elif len(request.form['password']) <  8: 
             error =  'Your password must be eight characters or longer.'
         else: # Attempt to insert the user
@@ -129,35 +154,33 @@ def register():
 def changepass():
     db = get_db()
     error = None
-    if request.method == '':
-        if request.form['oldpassword'] != decrypt(SECRET_KEY, db.execute('SELECT password FROM users WHERE username=?', (request.form['username'],)).fetchone()['password']):
+    if request.method == 'POST':
+        if request.form['oldpassword'] != decrypt(SECRET_KEY, db.execute('SELECT password FROM users WHERE username=?', (session['username'],)).fetchone()['password']):
             error = 'Your old password is incorrect.'
         if request.form['newpassword'] != request.form['confirmpassword']:
             error = 'Your new passwords do not match.'
+        if request.form['oldpassword'] == request.form['newpassword']:
+            error = 'Your new password cannot match your old password.'
         if request.form['newpassword'] == request.form['confirmpassword']:
-            db.cursor().execute('UPDATE users SET password=? WHERE username=?', encrypt(SECRET_KEY, request.form['newpassword']), session['username'],)
+            username = session['username'] # Temp fix: Prevents a statement error from occuring.
+            password = encrypt(SECRET_KEY, request.form['newpassword']) # Temp fix: Prevents a statement error from occuring.
+            cursor = db.cursor()
+            cursor.execute('UPDATE users SET password=? WHERE username=?', [password, username,])
+            db.commit()
+            session.pop('logged_in', None) # Pop the session, logging out the user.
+            session.pop('username', None) # Pop the username session cookie                
+            flash('Your password has been updated. Please login again.')
+            return redirect(url_for('index'))
     return render_template('usercp/changepass.html', error=error)
-@app.route('/servers/')
-def servers():
-    db = get_db()
-    error = None
-    return render_template('servercp/serverindex.html', error=error)
     
 @app.route('/servers/create', methods=['GET', 'POST'])
 def createServer():
     db = get_db()
     error = None
     if request.method == 'POST':
-        db.cursor().execute('INSERT INTO servers (sid, owner, jartype) VALUES (?,?,?)', [1, session['username'], request.form['jartype'] == "Spigot" if "spigot" else "nothing"])
+        db.cursor().execute('INSERT INTO servers (owner, jartype) VALUES (?,?)', [session['username'], request.form.getlist('jartype')])
+        flash('Your server has been created with the following name: ' + request.form['servername'])
     return render_template('servercp/createserver.html', error=error)
-    
-@app.route('/users/<username>')
-def userPanel(username):
-    db = get_db()
-    error = None
-    cur = db.execute('select owner, sid from servers order by id desc')
-    servers = [dict(owner=row[0], sid=row[1]) for row in cur.fetchall()]
-    return render_template('usercp/userinfo.html', error=error, servers=servers)
 
 @app.route('/logout')
 def logout():
@@ -169,4 +192,4 @@ def logout():
 if __name__ == "__main__":
     init_db()
     app.debug = True
-    app.run()
+    app.run(host='0.0.0.0')
