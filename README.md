@@ -6,7 +6,7 @@
 
 The repository for the Minecraft Server Control Panel written in Python.
 
-** User Rank Format **
+**User Rank Format**
 * User Rank 1 - Administrator
 * User Rank 2 - Moderator
 * User Rank 3 - Trusted User
