@@ -63,7 +63,7 @@ def init_db(): # Initialize database if it doesn't exist.
         ''') # Create the servers database.
         cursor.execute('''
         CREATE TABLE servers(sid INTEGER PRIMARY KEY AUTOINCREMENT UNIQUE, name TEXT,
-        owner TEXT, jartype TEXT)
+        owner TEXT, jartype TEXT, memory INT, customJartypePath STRING, worldName STRING)
         ''')
         db.commit()
         cursor.execute('INSERT INTO users (username, email, password, rank, tempPass) VALUES (?, ?, ?, 4, 0)', (username, email, password))
@@ -106,7 +106,9 @@ def close_db(error): # On application close, close the database normally, as to 
 
 @app.route('/')
 def index():
-    return render_template('index.html')
+    cur = g.db.execute('select title, text from entries order by id desc')
+    entries = [dict(title=row[0], text=row[1]) for row in cur.fetchall()]
+    return render_template('index.html', entries=entries)
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -178,7 +180,7 @@ def createServer():
     db = get_db()
     error = None
     if request.method == 'POST':
-        db.cursor().execute('INSERT INTO servers (owner, jartype) VALUES (?,?)', [session['username'], request.form.getlist('jartype')])
+        db.cursor().execute('INSERT INTO servers (owner, jartype) VALUES (?,?)', [str(session['username']), str(request.form.getlist('jartype')), ])
         flash('Your server has been created with the following name: ' + request.form['servername'])
     return render_template('servercp/createserver.html', error=error)
 
@@ -189,6 +191,16 @@ def logout():
     flash('You were logged out.')
     return redirect(url_for('index'))
     
+@app.route('/servers/id/<sid>/index', methods=['GET','POST'])
+def serverIndex(sid):
+    db = get_db()
+    error = None
+    if request.method == 'POST':
+        if request.form['name'] == None:
+            error = 'The server name cannot be empty.'
+        db.cursor().execute('UPDATE servers SET jartype=?, name=? WHERE sid=?', [request.form['jartype'], request.form['name'], sid])
+    return render_template('servercp/serverpanel.html', error=error)
+
 if __name__ == "__main__":
     init_db()
     app.debug = True

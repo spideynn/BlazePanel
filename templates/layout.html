@@ -2,15 +2,22 @@
     <head>
         <title>BlazeGoat Panel</title>
         <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='style.css') }}">
+        <link rel="shortcut icon" href="{{ url_for('static', filename='favicon.ico') }}">    
     </head>
     <div class="page">
-        <h1>BlazeGoat Panel</h1>
+        <h1>BlazeGoat Panel &nbsp;&nbsp;<img style="width: 48px; height: 48px;" src="{{ url_for('static', filename='favicon.ico') }}"></img></h1>
         <div class="nav">
+            <a href="{{ url_for('index') }}">Home</a>
+            &nbsp;|&nbsp;
         {% if not session.logged_in %}
             <a href="{{ url_for('register') }}">Sign Up</a>
-            or
+            &nbsp;|&nbsp;
             <a href="{{ url_for('login') }}">Log In</a>
         {% else %}
+            <a href="{{ url_for('createServer')}}">Create Server</a>
+            &nbsp;|&nbsp;
+            <a href="{{ url_for('changepass')}}">Change Password</a>
+            &nbsp;|&nbsp;
             <a href="{{ url_for('logout') }}">Log Out</a>
         {% endif %}
 
