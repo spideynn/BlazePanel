@@ -106,9 +106,10 @@ def close_db(error): # On application close, close the database normally, as to 
 
 @app.route('/')
 def index():
-    cur = g.db.execute('select title, text from entries order by id desc')
-    entries = [dict(title=row[0], text=row[1]) for row in cur.fetchall()]
-    return render_template('index.html', entries=entries)
+    #db = get_db()
+    #cur = db.execute('select title, text from entries order by id desc')
+    #entries = [dict(title=row[0], text=row[1]) for row in cur.fetchall()]
+    return render_template('index.html')
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
