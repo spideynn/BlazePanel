@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 import os
 import sqlite3
-from flask import Flask, request, session, g, redirect, url_for, render_template, flash
+import psutil
+from flask import Flask, request, session, g, redirect, url_for, render_template, flash, jsonify, abort
 import easygui
 
 app = Flask(__name__)
@@ -19,26 +20,26 @@ app.config.update(dict(
 ### ENCRYPTED PASSWORDS [using bcrypt-utils]###
 def encrypt(key, msg):
     encryped = []
-    for i, c in enumerate(msg):
-        key_c = ord(key[i % len(key)])
-        msg_c = ord(c)
-        encryped.append(chr((msg_c + key_c) % 127))
-    return ''.join(encryped)
+    for i, c in enumerate(msg): # Iterate (count through) items and characters
+        key_c = ord(key[i % len(key)]) # Convert to ASCII with the given key and length of key.
+        msg_c = ord(c) # Convert to ASCII with the given message and character.
+        encryped.append(chr((msg_c + key_c) % 127)) # Append characters to the end of the encrypted array.
+    return ''.join(encryped) # Join text array together in an empty string, and return it.
 
 def decrypt(key, encryped):
     msg = []
-    for i, c in enumerate(encryped):
-        key_c = ord(key[i % len(key)])
-        enc_c = ord(c)
-        msg.append(chr((enc_c - key_c) % 127))
-    return ''.join(msg)
+    for i, c in enumerate(encryped): # Iterate (count through) items and characters
+        key_c = ord(key[i % len(key)]) # Convert to ASCII with the given key and length of key.
+        enc_c = ord(c) # Convert to ASCII with the given message and character.
+        msg.append(chr((enc_c - key_c) % 127)) # Append characters to the end of the encrypted array.
+    return ''.join(msg) # Join text array together in an empty string, and return it.
 ### END ENCRYPTED PASSWORDS ###
 
 ### START DATABASE SETUP AND DETECTION ###
 def connect_db(): # Connect to the database specified in the config array.
     rv = sqlite3.connect(app.config['DATABASE'])
     rv.row_factory = sqlite3.Row
-    return rv
+    return rv # Returns connection item, removing the need to make multiple blocking connections.
 
 def init_db(): # Initialize database if it doesn't exist.
     if os.path.exists("data/blazegoat.db"):
@@ -52,7 +53,7 @@ def init_db(): # Initialize database if it doesn't exist.
         while(len(password) < 8):
             password = encrypt(SECRET_KEY, easygui.passwordbox('Password is less than eight characters\nPlease enter a password that is longer than eight characters. (hidden)'))
         email = easygui.enterbox('Please enter your email address.')
-        db = sqlite3.connect('data/blazegoat.db')
+        db = sqlite3.connect('data/blazegoat.db') # Connect to the database, creating it.
         
         cursor = db.cursor() # Create the users table.
         cursor.execute('PRAGMA secure_delete = "1"') # Undeletable users and server data, preventing stolen data like usernames and passwords.
@@ -60,15 +61,15 @@ def init_db(): # Initialize database if it doesn't exist.
         cursor.execute('''
         CREATE TABLE users(id INTEGER PRIMARY KEY, username TEXT UNIQUE,
         email TEXT UNIQUE, password TEXT, rank INT, tempPass INTEGER)
-        ''') # Create the servers database.
+        ''') # Create the users database.
         cursor.execute('''
         CREATE TABLE servers(sid INTEGER PRIMARY KEY AUTOINCREMENT UNIQUE, name TEXT,
         owner TEXT, jartype TEXT, memory INT, customJartypePath STRING, worldName STRING)
-        ''')
+        ''') # Create the servers database.
         db.commit()
         cursor.execute('INSERT INTO users (username, email, password, rank, tempPass) VALUES (?, ?, ?, 4, 0)', (username, email, password))
-        db.commit()
-        db.close()
+        db.commit() # Insert the user's info that was provided.
+        db.close() # Close connection.
         print("Sucessfully created database.")
 ### END DATABASE SETUP AND DETECTION ###
 
@@ -101,15 +102,15 @@ def page_bad_request(e):
     
 @app.teardown_appcontext
 def close_db(error): # On application close, close the database normally, as to not break the db.
-    if hasattr(g, 'sqlite_db'):
-        g.sqlite_db.close()
+    if hasattr(g, 'sqlite_db'): # Check global config for the sqlite attribute
+        g.sqlite_db.close() # Close the database.
 
 @app.route('/')
 def index():
-    #db = get_db()
-    #cur = db.execute('select title, text from entries order by id desc')
-    #entries = [dict(title=row[0], text=row[1]) for row in cur.fetchall()]
-    return render_template('index.html')
+    db = get_db()
+    cur = db.execute('select name, owner, jartype, sid from servers order by sid desc')
+    servers = [dict(name=row[0], owner=row[1], jartype=row[2], sid=row[3]) for row in cur.fetchall()] # Create a dictionary of servers w/ jartype and owner.
+    return render_template('index.html', servers=servers)
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -137,18 +138,19 @@ def register():
     if request.method == 'POST':
         if request.form['password'] != request.form['confirmpassword']: # Doesn't match
             error = 'Your passwords do not match.'
-        if request.form['username'] == 'admin' or 'administrator':
+        if request.form['username'].lower() == 'admin' or request.form['username'].lower() == 'administrator': # User tries to use a reserved username.
             error = 'That username is reserved.'
         elif len(request.form['password']) <  8: 
             error =  'Your password must be eight characters or longer.'
         else: # Attempt to insert the user
             try:
-                db.cursor().execute('INSERT INTO users (username, email, password, rank, tempPass) VALUES (?, ?, ?, 1, 0)', 
-                           [request.form['username'], request.form['email'], encrypt(SECRET_KEY, request.form['password'])])
+                db.cursor().execute('INSERT INTO users (username, email, password, rank, tempPass) VALUES (?, ?, ?, 4, 0)', 
+                           [request.form['username'].lower(), request.form['email'].lower(), encrypt(SECRET_KEY, request.form['password'])])
                 db.commit()
             except sqlite3.IntegrityError: # Username or email exists.
                 error = 'Username or email already taken.'
             flash('Registration successful! You have been logged in.')
+            session['username'] = request.form['username']
             session['logged_in'] = True
             return redirect(url_for('index'))
     return render_template('register.html', error=error)
@@ -157,6 +159,8 @@ def register():
 def changepass():
     db = get_db()
     error = None
+    if 'logged_in' in session != True and 'username' in session == None:            
+        abort(403)
     if request.method == 'POST':
         if request.form['oldpassword'] != decrypt(SECRET_KEY, db.execute('SELECT password FROM users WHERE username=?', (session['username'],)).fetchone()['password']):
             error = 'Your old password is incorrect.'
@@ -170,9 +174,7 @@ def changepass():
             cursor = db.cursor()
             cursor.execute('UPDATE users SET password=? WHERE username=?', [password, username,])
             db.commit()
-            session.pop('logged_in', None) # Pop the session, logging out the user.
-            session.pop('username', None) # Pop the username session cookie                
-            flash('Your password has been updated. Please login again.')
+            flash('Your password has been updated.')
             return redirect(url_for('index'))
     return render_template('usercp/changepass.html', error=error)
     
@@ -181,7 +183,8 @@ def createServer():
     db = get_db()
     error = None
     if request.method == 'POST':
-        db.cursor().execute('INSERT INTO servers (owner, jartype) VALUES (?,?)', [str(session['username']), str(request.form.getlist('jartype')), ])
+        db.cursor().execute('INSERT INTO servers (owner, name, jartype) VALUES (?,?,?)', [str(session['username']), request.form['servername'], str(request.form.getlist('jartype')), ])
+        db.commit()
         flash('Your server has been created with the following name: ' + request.form['servername'])
     return render_template('servercp/createserver.html', error=error)
 
@@ -196,13 +199,30 @@ def logout():
 def serverIndex(sid):
     db = get_db()
     error = None
+    if request.method == 'GET':
+        try:
+            if db.execute('SELECT sid FROM servers WHERE sid=?', (sid,)).fetchone()['sid'] is None: # If server doesn't exist, throws TypeError (None)
+                return render_template('errors/404.html')
+            else:
+                return render_template('servercp/serverpanel.html', error=error, sid=sid)
+        except TypeError:
+            return render_template('errors/404.html')
+            
     if request.method == 'POST':
         if request.form['name'] == None:
             error = 'The server name cannot be empty.'
         db.cursor().execute('UPDATE servers SET jartype=?, name=? WHERE sid=?', [request.form['jartype'], request.form['name'], sid])
-    return render_template('servercp/serverpanel.html', error=error)
+        db.commit()
+    return render_template('servercp/serverpanel.html', error=error, sid=sid)
+    
+@app.route('/servers/id/<sid>/_api', methods=["GET"])
+def serverSocketInfo(sid): # Allows auto-updating for the server info panel.
+    cpu=psutil.cpu_percent() 
+    ram=psutil.virtual_memory() # Remeber, this is in bytes!
+    pid="Unknown. [placeholder]"
+    return jsonify(cpu=cpu, ram=ram, pid=pid)
 
 if __name__ == "__main__":
     init_db()
-    app.debug = True
+    app.debug = True 
     app.run(host='0.0.0.0')

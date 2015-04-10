@@ -20,3 +20,5 @@ h3              { font-style: italic; color: #377BA8; font-size: 0.9em; }
 .flash          { background: #CEE5F5; padding: 0.5em;
                   border: 1px solid #AACBE2; }
 .error          { background: #F0D6D6; padding: 0.5em; }
+
+.panel-index button    { margin-top: 5px; }
