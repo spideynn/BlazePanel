@@ -15,9 +15,9 @@ logFilter = Filter('static', '_api') # Filter out requests to static and to _api
 ### CONFIGURATION SECTION ###
 initial_config = '''
 port: 8080
-debug: true
+debug: True
 secret_key: enter_a_key_here
-server_creation_locked: true
+server_creation_locked: True
 '''
 
 cfg = ConfigManager()
@@ -101,23 +101,23 @@ def get_db(): # Gets the database from the config array, connects, and returns t
     return g.sqlite_db
 
 ### ERROR HANDLERS ###
-@app.errorhandler(404)
+@app.errorhandler(404) # Not foudn
 def page_not_found(e):
     return render_template('errors/404.html'), 404
 
-@app.errorhandler(410)
+@app.errorhandler(410) # Gone
 def page_gone(e):
     return render_template('errors/410.html'), 410
 
-@app.errorhandler(403)
+@app.errorhandler(403) # Forbidden
 def page_no_access(e):
     return render_template('errors/403.html'), 403
 
-@app.errorhandler(500)
+@app.errorhandler(500) # Internal Server error
 def page_error(e):
     return render_template('errors/500.html'), 500
 
-@app.errorhandler(400)
+@app.errorhandler(400) # Bad request
 def page_bad_request(e):
     return render_template('errors/400.html'), 400
 ### END ERROR HANDLERS ###
@@ -141,7 +141,7 @@ def login():
     db = get_db().cursor()
     error = None
     if request.method == 'POST':
-        try: # None means that the username doesn't exist. TODO: Fix this so that it doesn't require a try statement.
+        try: # None means that the username doesn't exist.
             if request.form['username'] != db.execute('SELECT username FROM users WHERE username=?', (request.form['username'],)).fetchone()['username']:
                 error = 'Invalid username.'
             elif request.form['password'] != decrypt(SECRET_KEY, db.execute('SELECT password FROM users WHERE username=?', (request.form['username'],)).fetchone()['password']):
@@ -193,10 +193,8 @@ def changepass():
         if request.form['oldpassword'] == request.form['newpassword']:
             error = 'Your new password cannot match your old password.'
         if request.form['newpassword'] == request.form['confirmpassword']:
-            username = session['username'] # Temp fix: Prevents a statement error from occuring.
-            password = encrypt(SECRET_KEY, request.form['newpassword']) # Temp fix: Prevents a statement error from occuring.
             cursor = db.cursor()
-            cursor.execute('UPDATE users SET password=? WHERE username=?', [password, username,])
+            cursor.execute('UPDATE users SET password=? WHERE username=?', [encrypt(SECRET_KEY, request.form['newpassword']), session['username'],])
             db.commit()
             flash('Your password has been updated.')
             return redirect(url_for('index'))
@@ -206,10 +204,19 @@ def changepass():
 def createServer():
     db = get_db()
     error = None
-    if request.method == 'POST' and app.config['server_creation_locked'] == False:
-        db.cursor().execute('INSERT INTO servers (owner, name, jartype) VALUES (?,?,?)', [str(session['username']), request.form['servername'], str(request.form.getlist('jartype')), ])
-        db.commit()
-        flash('Your server has been created with the following name: ' + request.form['servername'])
+    print(cfg.server_creation_locked)
+    if request.method == 'GET' and cfg.server_creation_locked == True:
+        flash("Server creation has been locked by the administrators.")
+        return redirect(url_for("index"))
+    elif request.method == 'POST':
+        if app.config["server_creation_locked"] == True:
+            flash("Server creation has been locked by the administrators.")
+            return redirect(url_for('index'))
+        else:
+            db.cursor().execute('INSERT INTO servers (owner, name, jartype) VALUES (?,?,?)', [str(session['username']), request.form['servername'], str(request.form.getlist('jartype')), ])
+            db.commit()
+            flash('Your server has been created with the following name: ' + request.form['servername'])
+            return redirect(url_for('index'))
     else:
         error = "Server creation has been locked by the administrators."
     return render_template('servercp/createserver.html', error=error)
