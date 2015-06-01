@@ -1,0 +1,43 @@
+{% extends "layout.html" %}
+
+{% block body %}
+<h2>Admin Servers Panel</h2>
+<div class="adminpanel">
+	<!-- Backup Code
+    <table style="width:100%">
+		<tr>
+			<td><b>Username:</b></td>
+			<td><b>Level:</b></td>
+			<td><b>Tools:</b></td>
+		</tr><br>
+	    <tr>
+			<td>TheElite96</td>
+			<td>Admin</td>
+			<td><a href="">Edit</a>&nbsp;|&nbsp;<a href="">Ban</a>&nbsp;|&nbsp;<a href="">Kick</a>&nbsp;|&nbsp;<a href="">Promote</a></td>
+			</tr>
+
+			<tr>
+			<td>Spideynn</td>
+			<td>Owner</td>
+			<td><a href="">Edit</a>&nbsp;|&nbsp;<a href="">Ban</a>&nbsp;|&nbsp;<a href="">Kick</a>&nbsp;|&nbsp;<a href="">Promote</a></td>
+			</tr>
+
+			<tr>
+			<td>RazerDoge</td>
+			<td>Owner</td>
+			<td><a href="">Edit</a>&nbsp;|&nbsp;<a href="">Ban</a>&nbsp;|&nbsp;<a href="">Kick</a>&nbsp;|&nbsp;<a href="">Promote</a></td>
+		</tr>
+	</table> -->
+    <table>
+        {% for user in users %}
+            <li style="list-style-type: none">
+                <h3>{{ user.username }} | Rank: {{ user.rank }} | Email: {{ user.email }}</h3>
+                <h3><a href="">Edit</a>&nbsp;|&nbsp;<a href="">Ban</a>&nbsp;|&nbsp;<a href="">Kick</a>&nbsp;|&nbsp;<a href="">Promote</a></h3>
+                <hr />
+            </li>
+        {% else %}
+            <li><em>ERROR: No users exist! <a href="/signup">Create a user now?</a></em></li>
+        {% endfor %}
+    </table>
+</div>
+{% endblock %}
