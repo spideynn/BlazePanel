@@ -13,3 +13,11 @@ The repository for the Minecraft Server Control Panel written in Python.
 * Java 7 or 8 installed and on the PATH
 * Windows, Linux, or Mac OS X
 * Python 3.4 with the requirements in ```requirements.txt```
+
+# How to set up
+
+* Install Java 7 or 8, along with Python 3.4
+* ```cd``` into the directory with BlazeGoat-Panel, and run ```pip install -r requirements.txt```
+* Configure the panel by editing ```blazegoat_panel.conf``` in the data folder.
+* Run app.py - ```python app.py```
+* _NOTE:_ On Linux, you might have Python 2.7 and 3.4 installed. In that case, run ```pip3``` instead of ```pip```, and ```python3``` instead of ```python```
