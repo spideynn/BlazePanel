@@ -1,11 +1,7 @@
 # -*- coding: utf-8 -*-
-import os
-import sqlite3
-import psutil
+import os, sys, traceback, sqlite3, psutil, api.wrapper, getpass
 from flask import Flask, request, session, g, redirect, url_for, render_template, flash, jsonify, abort
-import api.wrapper
 from flask.ext.logging import Filter
-import getpass
 from pymlconf import ConfigManager
 
 app = Flask(__name__)
@@ -149,6 +145,19 @@ def login():
             else:
                 session['logged_in'] = True # Set the logged in cookie.
                 session['username'] = request.form['username'] # Store the username as a session cookie
+                admin = db.execute('SELECT rank FROM users WHERE username=?', (request.form['username'],)).fetchone()['rank']
+                if admin is 1:
+                    session['is_admin'] = True
+                    session['is_moderator'] = False
+                    session['is_trusted'] = False
+                elif admin is 2:
+                    session['is_admin'] = False
+                    session['is_moderator'] = True
+                    session['is_trusted'] = False
+                elif admin is 3:
+                    session['is_admin'] = False
+                    session['is_moderator'] = False
+                    session['is_trusted'] = True
                 flash('You were logged in')
                 return redirect(url_for('index'))
         except TypeError:
@@ -320,9 +329,11 @@ def adminPanelSettings():
                 SECRET_KEY=cfg.secret_key,
                 server_creation_locked=cfg.server_creation_locked
             ))
-        except Exception as ex:
+        except:
             flash("There was an error saving the panel settings. Check the console for an error.")
-            print("ERROR: " + ex)
+            exc_type, exc_value, exc_traceback = sys.exc_info()
+            lines = traceback.format_exception(exc_type, exc_value, exc_traceback)
+            print ''.join('!! ' + line for line in lines)  # Log it or whatever here
             return redirect(url_for("adminPanelSettings"))
         flash('Settings saved successfully.')
         return redirect(url_for("adminPanelSettings"))
