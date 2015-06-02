@@ -265,7 +265,7 @@ def serverFunctions(sid, option):
             return jsonify(cpu=cpu, ram=ram, pid=pid, players=players, playerList=playerlist) # Convert variables to JSON.
 
 @app.route('/admin')
-def adminPanel():
+def adminPanelIndex():
     if session.get('logged_in') == True:
         return render_template('admincp/adminindex.html')
     if session.get('logged_in') == False or None:
@@ -302,14 +302,28 @@ def adminPanelSettings():
     if request.method == "POST":
         try:
             f = open("data/blazegoat_panel.conf", "r+")
-            f.write("port: 8080\n")
-            f.write("debug: " + request.form["debug"] + "\n")
-            f.write("secret_key: " + cfg.secret_key + "\n")
-            f.write("server_creation_locked: " + request.form["server_creation_locked"] + "\n")
-            f.close()
-        except:
-            error="There was an error saving the settings. Check the python console for an error."
-            return render_template("templates/admincp/adminsettings.html", error=error)
+            f.write("port: " + str(cfg.port) + "\n")
+            f.write("debug: " + str(request.form["debug"]) + "\n")
+            f.write("secret_key: " + str(cfg.secret_key) + "\n")
+            f.write("server_creation_locked: " + str(request.form["server_creation_locked"]) + "\n")
+            f.close() # Write the config, then close the file handle.
+
+            cfg.load_files(["data/blazegoat_panel.conf"]) # Reload the config.
+
+            print(cfg.debug)
+            print(app.config['DEBUG'])
+
+            app.config.update(dict( # Update all the config options.
+                DATABASE=os.path.join('data/', 'blazegoat.db'),
+                STATIC_FOLDER='static/',
+                DEBUG=cfg.debug,
+                SECRET_KEY=cfg.secret_key,
+                server_creation_locked=cfg.server_creation_locked
+            ))
+        except Exception as ex:
+            flash("There was an error saving the panel settings. Check the console for an error.")
+            print("ERROR: " + ex)
+            return redirect(url_for("adminPanelSettings"))
         flash('Settings saved successfully.')
         return redirect(url_for("adminPanelSettings"))
 
