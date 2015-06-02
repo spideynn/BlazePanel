@@ -3,7 +3,33 @@
 {% block body %}
 <h2>Panel Settings</h2>
     <div class="adminpanel">
+        <h1>Global Panel Settings</h1>
+        {% if error %}<p class="error"><strong>Error:</strong> {{ error }}{% endif %}
+        <form action="panel" method="post">
+            <dl>
+                <dt><h3>Panel Debug Mode: </h3></dt>
+                <dd>
+                    <select name="debug">
+                        <option value="True">True</option>
+                        <option value="False">False</option>
+                    </select>
+                </dd>
 
+                <hr />
+
+                <dt><h3>Server Creation: </h3></dt>
+                <dd>
+                    <select name="server_creation_locked">
+                        <option value="True">Locked</option>
+                        <option value="False">Unlocked</option>
+                    </select>
+                </dd>
+
+                <hr />
+
+                <dd><input type="submit" value="Save Settings"></dd>
+            </dl>
+        </form>
     </div>
 
 {% endblock %}

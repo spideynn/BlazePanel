@@ -2,7 +2,7 @@ $(document).ready(function () {
     function update_values() {
         $.getJSON("_api", function(data) {
             $("#cpu-progress").css("width", data.cpu + "%").attr("aria-valuenow", data.cpu).text(data.cpu + "%");
-            $("#memory-progress").css("width", data.ram.percent + "%").attr("aria-valuenow", data.ram.percent).text(data.ram.percent + "%");
+            $("#memory-progress").css("width", data.ram[2] + "%").attr("aria-valuenow", data.ram[2]).text(data.ram[2] + "%");
             $("#server-pid").text("PID: " + data.pid)
         });
     }

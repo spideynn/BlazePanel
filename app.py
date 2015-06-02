@@ -291,13 +291,27 @@ def adminServers():
         abort(403)
     abort(403)
 
-@app.route('/admin/settings/panel')
+@app.route('/admin/settings/panel', methods=["GET", "POST"])
 def adminPanelSettings():
-    if session.get('logged_in') == True:
-        return render_template('admincp/adminsettings.html')
-    if session.get('logged_in') == False or None:
-        abort(403)
-    abort(403)
+    if request.method == "GET":
+        if session.get('logged_in') == True:
+            return render_template('admincp/adminsettings.html', lock_server_creation=cfg.server_creation_locked, panel_debug=cfg.debug)
+        if session.get('logged_in') == False or None:
+            abort(403)
+        abort(500)
+    if request.method == "POST":
+        try:
+            f = open("data/blazegoat_panel.conf", "r+")
+            f.write("port: 8080\n")
+            f.write("debug: " + request.form["debug"] + "\n")
+            f.write("secret_key: " + cfg.secret_key + "\n")
+            f.write("server_creation_locked: " + request.form["server_creation_locked"] + "\n")
+            f.close()
+        except:
+            error="There was an error saving the settings. Check the python console for an error."
+            return render_template("templates/admincp/adminsettings.html", error=error)
+        flash('Settings saved successfully.')
+        return redirect(url_for("adminPanelSettings"))
 
 if __name__ == "__main__":
     init_db()
