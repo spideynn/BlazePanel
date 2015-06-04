@@ -20,7 +20,7 @@ cfg = ConfigManager()
 cfg.load_files(["data/blazegoat_panel.conf"]) # Load the panel configuration.
 
 app.config.update(dict(
-    DATABASE=os.path.join('data/', 'blazegoat.db'),
+    DATABASE=os.path.join('data/', 'blazegoat.production.db'),
     STATIC_FOLDER='static/',
     DEBUG=cfg.debug,
     SECRET_KEY=cfg.secret_key,
@@ -175,6 +175,8 @@ def register():
             error = 'That username is reserved.'
         elif len(request.form['password']) <  8:
             error =  'Your password must be eight characters or longer.'
+        elif len(request.form['username']) > 16:
+            error = "Your username is longer than 16 characters."
         else: # Attempt to insert the user
             try:
                 db.cursor().execute('INSERT INTO users (username, email, password, rank, tempPass) VALUES (?, ?, ?, 4, 0)',
@@ -213,7 +215,6 @@ def changepass():
 def createServer():
     db = get_db()
     error = None
-    print(cfg.server_creation_locked)
     if request.method == 'GET' and cfg.server_creation_locked == True:
         flash("Server creation has been locked by the administrators.")
         return redirect(url_for("index"))
@@ -225,15 +226,16 @@ def createServer():
             db.cursor().execute('INSERT INTO servers (owner, name, jartype) VALUES (?,?,?)', [str(session['username']), request.form['servername'], str(request.form.getlist('jartype')), ])
             db.commit()
             flash('Your server has been created with the following name: ' + request.form['servername'])
-            return redirect(url_for('index'))
-    else:
-        error = "Server creation has been locked by the administrators."
+            return redirect(url_for("index"))
     return render_template('servercp/createserver.html', error=error)
 
 @app.route('/logout')
 def logout():
     session.pop('logged_in', None) # Pop the session, logging out the user.
     session.pop('username', None) # Pop the username session cookie
+    session.pop('is_admin', None) # Pop the userlevel cookies, preventing security issues.
+    session.pop('is_moderator', None)
+    session.pop('is_trusted', None)
     flash('You were logged out.')
     return redirect(url_for('index'))
 
@@ -255,12 +257,12 @@ def serverIndex(sid):
             return render_template('errors/404.html')
     return render_template('servercp/serverpanel.html', error=error, sid=sid)
 
-    if request.method == 'POST':
-        if request.form['name'] == None:
-            error = 'The server name cannot be empty.'
-        db.cursor().execute('UPDATE servers SET jartype=?, name=? WHERE sid=?', [request.form['jartype'], request.form['name'], sid])
-        db.commit()
-    return render_template('servercp/serverpanel.html', error=error, sid=sid)
+    #if request.method == 'POST':
+    #    if request.form['name'] == None:
+    #        error = 'The server name cannot be empty.'
+    #    db.cursor().execute('UPDATE servers SET jartype=?, name=? WHERE sid=?', [request.form['jartype'], request.form['name'], sid])
+    #    db.commit()
+    #return render_template('servercp/serverpanel.html', error=error, sid=sid)
 
 @app.route('/servers/id/<sid>/_<option>', methods=["GET", "POST"])
 def serverFunctions(sid, option):
@@ -292,6 +294,26 @@ def adminUsers():
         abort(403)
     abort(403)
 
+@app.route('/admin/settings/<username>/_<option>')
+def adminUsersManageRank(username, option):
+    if session.get('logged_in') == True:
+        if option=="promote":
+            db = get_db()
+            db.execute('UPDATE users SET rank=1 WHERE username=?;', (username,))
+            db.commit()
+            flash('User ' + username + ' promoted to administrator. Log out and back in for it to take effect.')
+            return redirect(url_for('adminUsers'))
+
+        if option=="demote":
+            db = get_db()
+            db.execute('UPDATE users SET rank=4 WHERE username=?;', (username,))
+            db.commit()
+            flash('User ' + username + ' demoted to normal user. Log out and back in for it to take effect.')
+            return redirect(url_for('adminUsers'))
+    if session.get('logged_in') == False or None:
+        abort(403)
+    abort(403)
+
 @app.route('/admin/settings/servers')
 def adminServers():
     if session.get('logged_in') == True:
@@ -319,21 +341,18 @@ def adminPanelSettings():
 
             cfg.load_files(["data/blazegoat_panel.conf"]) # Reload the config.
 
-            print(cfg.debug)
-            print(app.config['DEBUG'])
-
             app.config.update(dict( # Update all the config options.
                 DATABASE=os.path.join('data/', 'blazegoat.db'),
                 STATIC_FOLDER='static/',
-                DEBUG=cfg.debug,
+                DEBUG=str(request.form["debug"]),
                 SECRET_KEY=cfg.secret_key,
-                server_creation_locked=cfg.server_creation_locked
+                server_creation_locked=str(request.form["server_creation_locked"])
             ))
         except:
             flash("There was an error saving the panel settings. Check the console for an error.")
-            exc_type, exc_value, exc_traceback = sys.exc_info()
-            lines = traceback.format_exception(exc_type, exc_value, exc_traceback)
-            print ''.join('!! ' + line for line in lines)  # Log it or whatever here
+            exc_type, exc_value, exc_traceback = sys.exc_info() # Get exception info
+            lines = traceback.format_exception(exc_type, exc_value, exc_traceback) # Format traceback information
+            print(''.join('!! ' + line for line in lines)) # Print exception
             return redirect(url_for("adminPanelSettings"))
         flash('Settings saved successfully.')
         return redirect(url_for("adminPanelSettings"))
