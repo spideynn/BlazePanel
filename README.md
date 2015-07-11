@@ -1,7 +1,9 @@
 # BlazeGoat-Panel
 
 To help this project out, start a pull request with your changes and improvements.
-If you haven't signed the Contributor License Agreement (CLA), [sign it now](https://www.clahub.com/agreements/spideynn/BlazeGoat-Panel). You must sign it in order to create pull requests that we will accept.
+If you haven't signed the Contributor License Agreement (CLA), [sign it now](https://www.clahub.com/agreements/spideynn/BlazeGoat-Panel).
+
+This project is being rewritten in Java, code is on the 'rewrite' branch.
 
 **THIS IS NOT READY FOR PRODUCTION USE**
 
