@@ -6,7 +6,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import spark.ModelAndView;
-import spark.template.handlebars.*;
+import spark.template.pebble.*;
 
 import com.google.gson.Gson;
 
@@ -25,17 +25,15 @@ public class Main {
 	 */
 	// TODO: Routes, and route functions. Oh, and the pages.
 	public static void routes() {
-		staticFileLocation("/public");
-		Map map = new HashMap(); // provide empty hashmap for now.
-		/*
-		 * get("/", (request, response) -> new ModelAndView(map,
-		 * java.io.File.separator + "index.html"),
-		 * new HandlebarsTemplateEngine(System.getProperty("user.dir") +
-		 * java.io.File.separator + "templates" + java.io.File.separator));
-		 */
+		staticFileLocation("/public_");
 		get("/", (request, response) -> {
-			return "Welcome page";
-		});
+            Map<String, Object> attributes = new HashMap<>();
+            return new ModelAndView(attributes, "index.html");
+        }, new PebbleTemplateEngine());
+		 
+		//get("/", (request, response) -> {
+		//	return "Welcome page";
+		//});
 		get("/servers/:id", (request, response) -> {
 			if (request.params(":id") == "create") {
 				return "Create a Server";

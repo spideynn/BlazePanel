@@ -28,7 +28,7 @@
     </dependency>
     <dependency>
       <groupId>com.sparkjava</groupId>
-      <artifactId>spark-template-handlebars</artifactId>
+      <artifactId>spark-template-pebble</artifactId>
       <version>1.0.0</version>
     </dependency>
   </dependencies>
