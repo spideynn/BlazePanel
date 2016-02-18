@@ -1,0 +1,21 @@
+{% extends "templates/app.pebble" %}
+{% block content %}
+
+    <h2>Login</h2>
+    {% if error is not null %}<p class="error"><strong>Error:</strong> {{ error }}{% endif %}
+
+    <form action="/login" method="post">
+        <fieldset>
+            <dl>
+                <dt>Username:
+                <dd><input type="text" name="username">
+    
+                <dt>Password:
+                <dd><input type="password" name="password">
+    
+                <dd><input type="submit" value="Login">
+            </dl>
+        </fieldset>
+    </form>
+
+{% endblock %}

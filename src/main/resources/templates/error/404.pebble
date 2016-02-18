@@ -1,0 +1,8 @@
+{% extends "templates/app.pebble" %}
+
+{% block title %} 404 - BlazePanel {% endblock %}
+
+{% block content %}
+<h1>The content you were looking for was not found.</h1>
+<h3>Use the back button to go back to where you were.</h3>
+{% endblock %}

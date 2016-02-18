@@ -1,0 +1,8 @@
+{% extends "templates/app.pebble" %}
+
+{% block title %} 404 - BlazePanel {% endblock %}
+
+{% block content %}
+<h1>The server is currently in <i>maintenance mode</i>, and cannot accept any requests.</h1>
+<h3>{{ app_name }}</h3>
+{% endblock %}

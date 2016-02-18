@@ -1,0 +1,268 @@
+package net.spideynn.java.blazepanel.serverapi;
+
+import net.spideynn.java.blazepanel.serverapi.console.Console;
+import net.spideynn.java.blazepanel.serverapi.console.command.LogCommand;
+import net.spideynn.java.blazepanel.serverapi.event.Event;
+import net.spideynn.java.blazepanel.serverapi.listener.Listener;
+import org.json.simple.JSONArray;
+import org.json.simple.JSONObject;
+
+import java.io.*;
+import java.util.ArrayList;
+import java.util.List;
+
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+
+public class Server implements Runnable {
+	public final String server_name;
+	public final int server_id;
+	public final Minecraft minecraft;
+	public final List<String> server_args;
+	public final File server_dir;
+	public final JSONObject server_json;
+	
+	public volatile InputStream server_log;
+	private volatile OutputStream server_in;
+	private volatile BufferedWriter server_writer;
+	private volatile BufferedReader server_reader;
+	
+	private final ArrayList<Event> server_events = new ArrayList<Event>();
+	private final ArrayList<Listener> server_listeners = new ArrayList<Listener>();
+
+	private ProcessBuilder server_builder;
+	private Process server_proc;
+	public volatile Thread server_thread = new Thread(this);
+	
+	public Server(int id) {
+		this.server_id = id;
+		this.server_json = (JSONObject) Config.servers.get(id);
+		
+		this.server_name = server_json.get("name").toString();
+		this.minecraft = new Minecraft(server_json.get("minecraft").toString());
+		this.server_dir = new File(Reference.home_folder + File.separator + "servers" + File.separator + server_name);
+		
+		// Register server events:
+		this.server_events.add(new net.spideynn.java.blazepanel.serverapi.event.LoginEvent(this));
+		this.server_events.add(new net.spideynn.java.blazepanel.serverapi.event.LogoutEvent(this));
+		
+		// Register server listeners:
+		this.server_listeners.add(new net.spideynn.java.blazepanel.serverapi.listener.AboutListener(this));
+		
+		// Register custom server listeners:
+		JSONArray listener_json = (JSONArray) this.server_json.get("listeners");
+		
+		if (!(listener_json == null)) {
+			for (int i = 0; i < listener_json.size(); i++) {
+				JSONObject current = (JSONObject) listener_json.get(i);
+				this.server_listeners.add(new net.spideynn.java.blazepanel.serverapi.listener.Listener(this, current.get("listen").toString(), current.get("execute").toString()));
+			}
+		}
+
+		// Make sure our directory exists:
+		if (!this.server_dir.exists()) {
+			Logger.log("The server directory can't be found, creating it.");
+			this.server_dir.mkdirs();
+		}
+
+		// EULA
+		try {
+			flagEulaTrue();
+		} catch (IOException e1) {
+			e1.printStackTrace();
+		}
+		
+		// Build the launch commands:
+		server_args = new ArrayList<String>();
+
+        server_args.add(0, Reference.java);
+        server_args.add(1, "-jar");
+        server_args.add(2, minecraft.getJarLocation().toString());
+		
+		// Add from config:
+		if (Config.global != null && Config.global.get("arguments") != null) {
+			server_args.add(Config.global.get("arguments").toString());
+		}
+		
+		if (!(server_json.get("arguments") == null)) {
+			server_args.add(server_json.get("arguments").toString());
+		}
+		
+		try {
+			overrideServerProperties();
+		} catch (IOException e) {
+			e.printStackTrace();
+		} catch (InterruptedException e) {
+			e.printStackTrace();
+		}
+	}
+	
+	private void overrideServerProperties() throws IOException, InterruptedException {
+		JSONObject propjson = (JSONObject) server_json.get("properties");
+		
+		if (propjson == null || propjson.isEmpty()) {
+			Logger.log("We don't have any overrides for this server in our JSON file, but that's okay.", this);
+			return;
+		}
+		
+		File f = new File(this.server_dir + File.separator + "server.properties");
+		
+		if (!f.exists()) {
+			
+			/*
+			 * server.properties doesn't exist.
+			 * 
+			 * To fix this without dumping all of our overrides into the server.properties file
+			 * or manually inserting default values into the file and overriding them, we are
+			 * going go create an instance of the server and wait until it creates the file, once
+			 * it does we're just going to ask it to stop.
+			 * 
+			 */
+			
+			Logger.log("Creating server to generate properties...", this);
+			
+			// Create the server:
+			ProcessBuilder procbuild = new ProcessBuilder(this.server_args);
+			procbuild.directory(this.server_dir);
+			Process proc = procbuild.start();
+			
+			// Wait until server has created server.properties (check every half second)
+			while(!f.exists()){Thread.sleep(500);}
+			
+			// Kill the server and log that we got the properties file
+			proc.destroy();
+			Logger.log("Server stopped. server.properties was created.", this);
+		}
+		
+		MinecraftServerProperties propmc = new MinecraftServerProperties(f);
+		
+		// Loop through all properties in server.properties
+		for (int i = 0; i < propmc.lines.size(); i++) {
+			// If the property found exists in the JSON file:
+			if (propjson.get(propmc.getPropOf(i)) != null) {
+				propmc.modifyProp(propmc.getPropOf(i), propjson.get(propmc.getPropOf(i)).toString());
+			}
+		}
+	}
+	
+	private void flagEulaTrue() throws IOException {
+		/* 
+		 * Automatically flag eula=true inside eula.txt.
+		 * 
+		 * > By executing this method you are agreeing to Mojang's EULA.
+		 * > https://account.mojang.com/documents/minecraft_eula
+		 */
+
+		BufferedWriter writer = new BufferedWriter(new FileWriter(this.server_dir + File.separator + "eula.txt"));
+		writer.write("eula=true");
+		writer.close();
+	}
+
+	@Override
+	public synchronized void run() {
+		Logger.log("Starting " + this.server_name);
+		this.server_builder = new ProcessBuilder(this.server_args);
+		this.server_builder.directory(this.server_dir);
+		this.server_builder.redirectErrorStream(true);
+		
+		try {
+			this.server_proc = this.server_builder.start();
+			this.server_in = this.server_proc.getOutputStream();
+			this.server_log = this.server_proc.getInputStream();
+			this.server_writer = new BufferedWriter(new OutputStreamWriter(server_in));
+			this.server_reader = new BufferedReader(new InputStreamReader(server_log));
+			
+			/*
+			 *  We have to do something with passCommand or Java will refuse to accept it as part
+			 *  of our server process.
+			 *  
+			 *  A solution to this problem is to have an event on the server start, however having
+			 *  an actual event class for something that can only happen once, and that doesn't have
+			 *  a traditional trigger is difficult and would require a lot of changes and hacks in the
+			 *  main event class. 
+			 *  
+			 *  What we do below is parse what's under servers/<server>/events/start like an event, and
+			 *  keep it in the events object, but we don't actually have an event class for it.
+			 *  
+			 */
+			
+			if (this.server_json.get("events") != null && ((JSONObject) this.server_json.get("events")).get("start") != null) {
+				Event.parse(this,((JSONObject) this.server_json.get("events")).get("start").toString());
+			} else {
+				passCommand("say ServerMagic started " + this.server_name);
+			}
+			
+			if ((JSONObject) this.server_json.get("backup") != null) {
+				// Backup objects:
+				final Backup backup = new Backup(this);
+				
+				// Server Backup runnable:
+				if (((JSONObject) this.server_json.get("backup")).get("server") != null) {
+					ScheduledExecutorService executor = Executors.newScheduledThreadPool(2);
+					executor.scheduleAtFixedRate(new Runnable() {
+					    public void run() {
+					    	try {
+								backup.backupServer();
+							} catch (IOException e) {
+								e.printStackTrace();
+							}
+					    }
+					}, 0, (long) ((JSONObject) ((JSONObject) this.server_json.get("backup")).get("server")).get("time"), TimeUnit.MINUTES);
+				}
+				
+				// World Backup runnable:
+				if (((JSONObject) this.server_json.get("backup")).get("world") != null) {
+					ScheduledExecutorService executor = Executors.newScheduledThreadPool(2);
+					executor.scheduleAtFixedRate(new Runnable() {
+					    public void run() {
+					    	try {
+								backup.backupWorld();
+							} catch (IOException e) {
+								e.printStackTrace();
+							}
+					    }
+					}, 0, (long) ((JSONObject) ((JSONObject) this.server_json.get("backup")).get("world")).get("time"), TimeUnit.MINUTES);
+				}
+			
+			}
+			
+			// Server out:
+			String line = null;
+			StringBuilder out = new StringBuilder();
+			
+			// The following code loops while the server is alive:
+			while ((line = this.server_reader.readLine()) != null) {
+				out.append(line);
+				out.append(System.getProperty("line.separator"));
+				
+				// Logging logic:
+				if (LogCommand.log != null && Console.current_server != null) {
+					if ((LogCommand.log.equals("current") && Console.current_server ==  this) || LogCommand.log.equals("all")) {
+						Logger.log(line.toString(), this);
+					}
+				}
+				
+				// Loop through events and listeners:
+				for (int i = 0; i < this.server_events.size(); i++) {
+					this.server_events.get(i).parseLine(line.toString());
+				}
+
+				for (int i = 0; i < this.server_listeners.size(); i++) {
+					this.server_listeners.get(i).parseLog(line.toString());
+				}
+			}
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
+	
+	public void passCommand(String command) {
+		try {
+			this.server_writer.write(command.trim() + "\n");
+			this.server_writer.flush();
+		} catch (IOException e) {
+			Logger.log("Error passing command. Maybe the server died?", this);
+		}
+	}
+}

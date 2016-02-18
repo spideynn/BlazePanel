@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>BlazePanel</title>
+    <link rel="stylesheet" type="text/css" href="//netdna.bootstrapcdn.com/bootstrap/3.3.0/css/bootstrap.min.css">
+    <link rel="stylesheet" type="text/css" href="main.css">
+    <script src="https://code.jquery.com/jquery-2.1.3.min.js"></script>
+    <script src="main.js"></script> <!--
+    <link rel="shortcut icon" href="favicon.ico">
+    <link rel="apple-touch-icon" href="favicon.ico"> -->
+</head>
+<div class="page">
+    <!--<img style="width: 48px; height: 48px;" src="favicon.ico"></img>-->
+    <h1>BlazePanel &nbsp;&nbsp;</h1>
+    <div class="nav">
+
+        {% if admin == "true"%}
+        <a href="/admin">Admin</a>
+        &nbsp;|&nbsp;
+        {% endif %}
+        <a href="/">Home</a>
+        &nbsp;|&nbsp;
+        {% if logged_in == null %}
+        <a href="/signup">Sign Up</a>
+        &nbsp;|&nbsp;
+        <a href="/login">Log In</a>
+        {% else %}
+        <a href="/createserver">Create Server</a>
+        &nbsp;|&nbsp;
+        <a href="/user/changepass">Change Password</a>
+        &nbsp;|&nbsp;
+        <a href="/logout">Log Out</a>
+        {% endif %}
+
+    </div>
+
+    {% if messages %}
+    <div class="flash">{{ message }}</div>
+    {% endif %}
+
+    {% block content %}{% endblock %}
+</div>
+</html>
