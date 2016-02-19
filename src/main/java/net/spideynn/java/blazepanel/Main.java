@@ -1,14 +1,16 @@
 package net.spideynn.java.blazepanel;
 
-import com.google.common.hash.Hashing;
 import spark.ModelAndView;
 import spark.template.pebble.PebbleTemplateEngine;
 
 import java.io.File;
-import java.nio.charset.StandardCharsets;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.OutputStream;
 import java.sql.*;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Properties;
 
 import static spark.Spark.*;
 
@@ -16,14 +18,22 @@ public class Main {
 
     private static final String DB_PATH = "data/blazepanel.db";
     private static Connection db;
+    private static Properties prop = new Properties();
 
     public static void main(String[] args) {
+        try {
+            OutputStream output = new FileOutputStream("data/blazepanel.properties");
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        }
+
         //Config.createJSONObjects();
         //Activity.startAllServers(); TODO: Load all servers, but do not start.
         //Console.console();
         staticFileLocation("/public");
         File dbFile = new File(DB_PATH);
-        File dataFolder = new File ("data");
+        File dataFolder = new File("data");
+        port(30074);
         if (!dataFolder.exists()) {
             dataFolder.mkdir();
         }
@@ -55,46 +65,64 @@ public class Main {
             Map<String, Object> attr = new HashMap<>();
             Map<String, Object> servers = new HashMap<>();
             Statement statement = db.createStatement();
-            ResultSet rs = statement.executeQuery("select name, owner, jartype, sid from servers order by sid desc");
+            ResultSet rs = statement.executeQuery("SELECT name, owner, jartype, sid FROM servers ORDER BY sid DESC");
             statement.close();
             while (rs.next()) {
                 Map<String, ServerInfo> server;
                 servers.put(rs.getString("sid"), new ServerInfo(rs.getString("name"), rs.getString("jartype"), rs.getString("owner")));
+            }
+            if (request.session().attribute("logged_in") != null && request.session().attribute("username") != null) {
+                attr.put("logged_in", request.session().attribute("logged_in"));
+                attr.put("username", request.session().attribute("username"));
             }
             return new ModelAndView(attr, "templates\\home.pebble");
         }, new PebbleTemplateEngine());
 
         get("/login", (request, response) -> {
             Map<String, Object> attr = new HashMap<>();
-        
+            request.session(true);
+
             return new ModelAndView(attr, "templates/login.pebble");
         }, new PebbleTemplateEngine());
 
         post("/login", (request, response) -> {
             Map<String, Object> attr = new HashMap<>();
             Statement statement = db.createStatement();
-            String username = request.attribute("username");
-            String password = Hashing.sha256().hashString("", StandardCharsets.UTF_8).toString();
-            ResultSet rs = statement.executeQuery("select * from users");
-            statement.close();
+            if (request.queryParams("username").equals("") && request.queryParams("password").equals("")) {
+                attr.put("error", "You forgot to enter your username and your password.");
+                return new ModelAndView(attr, "templates/login.pebble");
+            } else if (request.queryParams("username").equals("")) {
+                attr.put("error", "You forgot to enter your username.");
+                return new ModelAndView(attr, "templates/login.pebble");
+            } else if (request.queryParams("password").equals("")) {
+                attr.put("error", "You forgot to enter your password.");
+                return new ModelAndView(attr, "templates/login.pebble");
+            }
+            String username = request.queryParams("username");
+            String password = Crypto.getSaltedHash(request.queryParams("password"));
+            ResultSet rs = statement.executeQuery("SELECT * FROM users");
             if (!rs.isBeforeFirst()) {
                 attr.put("error", "There are no users registered on this service.");
                 return new ModelAndView(attr, "templates/login.pebble");
             }
             while (rs.next()) {
-                if (username == rs.getString("username")) {
-                    if (password != rs.getString("password")) {
+                if (rs.getString("username").equals(username)) {
+                    if (Crypto.check(password, rs.getString("password"))) {
                         attr.put("error", "The username or password is incorrect");
+                        statement.close();
                         return new ModelAndView(attr, "templates/login.pebble");
                     } else {
-                        response.cookie("logged_in","true");
+                        request.session().attribute("logged_in", "true");
+                        request.session().attribute("username", username);
                         attr.put("logged_in", true);
                         attr.put("username", username);
+                        statement.close();
                         response.redirect("/");
                     }
                 }
             }
             attr.put("error", "The username or password is incorrect.");
+            statement.close();
             return new ModelAndView(attr, "templates/login.pebble");
         }, new PebbleTemplateEngine());
 
@@ -109,6 +137,23 @@ public class Main {
 
             return new ModelAndView(attr, "templates/signup.pebble");
         }));
+
+        get("/logout", (request, response) -> {
+            Map<String, Object> attr = new HashMap<>();
+            if (request.session().attribute("logged_in").equals("true") && request.session().attribute("username") != null) {
+                request.session().attribute("username", null);
+                request.session().attribute("logged_in", null);
+
+                response.redirect("/");
+            } else {
+                return new ModelAndView(attr, "templates/error/403.pebble");
+            }
+            return new ModelAndView(attr, "templates/error/500.pebble");
+        }, new PebbleTemplateEngine());
+
+        get("/_api", ((request, response) -> {
+            return "NYI.";
+        }));
         // Catch all other unknown pages. TODO: Fix this to not affect static files.
         /*
         get("/*", (req, res) -> {
@@ -119,9 +164,11 @@ public class Main {
         setupExceptions();
     }
 
-    private static void setupExceptions() {}
+    private static void setupExceptions() {
+    }
 
-    /** Users API:
+    /**
+     * Users API:
      * 1 - Normal User
      * 2 - Moderator
      * 3 - Admin
@@ -129,7 +176,6 @@ public class Main {
      */
     private static void createDb() {
         System.out.println("[WEB-UI] Database does not exist, running first time setup...");
-        // TODO: Does secure_delete actually do anything?
         String setup1 = "PRAGMA secure_delete = ON";
         String setup2 = "CREATE TABLE users(id INTEGER PRIMARY KEY, username TEXT UNIQUE," +
                 "email TEXT UNIQUE, password TEXT, rank INT, tempPass INTEGER)";
@@ -155,32 +201,32 @@ public class Main {
                 System.out.println("[SETUP] Please enter the password for the '" + username + "' account");
                 String passString = new String(System.console().readPassword());
 
-                int ops = statement.executeUpdate("INSERT INTO users (username, email, password, rank, tempPass) VALUES (" +
+                String password = Crypto.getSaltedHash(passString);
+
+                statement.executeUpdate("INSERT INTO users (username, email, password, rank, tempPass) VALUES (" +
                         username + ", " +
                         email + ", " +
-                        Hashing.sha256().hashString(passString, StandardCharsets.UTF_8) + ", " +
+                        password + ", " +
                         "4, " +
                         "0)");
                 statement.close();
-                System.out.println("[SETUP] [DEBUG] Ran " + ops + " operations on the database.");
 
             } else {
-                System.out.println("[SETUP] [WARNING] Could not access console, setting default. " +
+                System.out.println("[SETUP] [WARNING] Could not access current console, setting defaults. " +
                         "Be sure to change your password when you log in.");
                 System.out.println("[SETUP] [WARNING] Username: admin");
                 System.out.println("[SETUP] [WARNING] Password: blazepanel");
                 System.out.println("[SETUP] [WARNING] Email: default@example.com");
-                statement.executeUpdate("INSERT INTO users (username, email, password, rank, tempPass) VALUES (" +
-                        "admin, " +
-                        "default@example.com, " +
-                        Hashing.sha256().hashString("blazepanel", StandardCharsets.UTF_8).toString() + ", " +
-                        "4, " +
-                        "0)");
+                statement.executeUpdate("INSERT INTO users (username, email, password, rank) VALUES (" +
+                        "'admin', " +
+                        "'default@example.com', '" +
+                        Crypto.getSaltedHash("blazepanel") + "', " +
+                        "4)");
                 statement.close();
             }
 
-        } catch (SQLException e) {
-
+        } catch (Exception e) {
+            e.printStackTrace();
         }
     }
 }

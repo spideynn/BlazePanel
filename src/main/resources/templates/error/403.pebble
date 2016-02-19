@@ -3,9 +3,16 @@
 {% block title %} 403 - BlazePanel {% endblock %}
 
 {% block content %}
-<h1>You are not allowed to access this resource.</h1>
-{% if not logged_in %}
-<h2>Perhaps you should <a href="/login">sign in</a> first.</h2>
-{% endif %]
-<h3>Use the back button to go back to where you were.</h3>
+<div class="panel panel-danger">
+    <div class="panel-heading">
+        <h3 class="panel-title">Error</h3>
+    </div>
+    <div class="panel-body">
+        <h1>You are not allowed to access this resource.</h1>
+        {% if logged_in is null %}
+        <h2>Perhaps you should <a href="/login">sign in</a> first.</h2>
+        {% endif %}
+        <h3>Use the back button to go back to where you were.</h3>
+    </div>
+</div>
 {% endblock %}

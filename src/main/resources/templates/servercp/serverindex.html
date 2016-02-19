@@ -2,13 +2,13 @@
 
 {% block body %}
 
-    <ul class="serverindex">
-        <h1>Servers that you own:</h1>
-        {% for server in servers %}
-            {% if server.owner == request.username %}
-                <h3> {{ server.online }} | {{ server.name }}</h3>
-            {% endif %}
-        {% endfor %}
-    </ul>
+<ul class="serverindex">
+    <h1>Servers that you own:</h1>
+    {% for server in servers %}
+    {% if server.owner == request.username %}
+    <h3> {{ server.online }} | {{ server.name }}</h3>
+    {% endif %}
+    {% endfor %}
+</ul>
 
 {% endblock %}

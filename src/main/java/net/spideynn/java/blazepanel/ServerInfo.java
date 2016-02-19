@@ -1,7 +1,5 @@
 package net.spideynn.java.blazepanel;
 
-import java.util.function.Consumer;
-
 public class ServerInfo {
     private String name;
     private String jarType;
@@ -17,9 +15,11 @@ public class ServerInfo {
     public String getName() {
         return name;
     }
+
     public String getJarType() {
         return jarType;
     }
+
     public String getOwner() {
         return owner;
     }

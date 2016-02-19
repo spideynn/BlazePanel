@@ -1,17 +1,30 @@
 {% extends "templates/app.pebble" %}
 
 {% block content %}
-
-<ul class="entries">
-    {% if servers is null %}<li><em>No servers yet!</em></li>{% endif %}
-    {% for server in servers %}
-    <li>
-        <h2><a href="/servers/id/{{server.sid}}/index">{{ server.name }}</a></h2>
-        <h3> Jartype: {{ server.jartype }} | Owner: {{ server.owner }}<hr></h3>
-    </li>
-    {% else %}
-    <li><em>No servers yet!</em></li>
-    {% endfor %}
-</ul>
-
+<div class="panel panel-primary">
+    <div class="panel-heading">
+        <h3 class="panel-title">Servers</h3>
+    </div>
+    <div class="panel-body">
+        <ul class="entries">
+            {% if servers is null %}
+            <li>
+                <div class="well"><em>No servers yet!</em></div>
+            </li>
+            {% endif %}
+            {% for server in servers %}
+            <div class="well">
+                <li>
+                    <h2><a href="/servers/id/{{server.sid}}/index">{{ server.name }}</a></h2>
+                    <h3> Jartype: {{ server.jartype }} | Owner: {{ server.owner }}
+                        <hr>
+                    </h3>
+                </li>
+            </div>
+            {% else %}
+            <li><em>No servers yet!</em></li>
+            {% endfor %}
+        </ul>
+    </div>
+</div>
 {% endblock %}

@@ -2,42 +2,66 @@
 <html>
 <head>
     <title>BlazePanel</title>
-    <link rel="stylesheet" type="text/css" href="//netdna.bootstrapcdn.com/bootstrap/3.3.0/css/bootstrap.min.css">
+    <link rel="stylesheet" type="text/css" href="//netdna.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css">
     <link rel="stylesheet" type="text/css" href="main.css">
-    <script src="https://code.jquery.com/jquery-2.1.3.min.js"></script>
-    <script src="main.js"></script> <!--
-    <link rel="shortcut icon" href="favicon.ico">
-    <link rel="apple-touch-icon" href="favicon.ico"> -->
+    <link rel="stylesheet"
+          href="https://cdn.jsdelivr.net/bootstrap.material-design/0.5.8/css/bootstrap-material-design.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/bootstrap.material-design/0.5.8/css/ripples.min.css">
+
 </head>
+<body>
 <div class="page">
     <!--<img style="width: 48px; height: 48px;" src="favicon.ico"></img>-->
-    <h1>BlazePanel &nbsp;&nbsp;</h1>
-    <div class="nav">
+    <div class="navbar navbar-inverse">
+        <div class="container-fluid">
+            <div class="navbar-header">
+                <button type="button" class="navbar-toggle" data-toggle="collapse"
+                        data-target=".navbar-inverse-collapse">
+                    <span class="icon-bar"></span>
+                    <span class="icon-bar"></span>
+                    <span class="icon-bar"></span>
+                </button>
+                <a class="navbar-brand" href="/">BlazePanel</a>
+            </div>
+            <div class="navbar-collapse collapse navbar-inverse-collapse">
+                <!--
+                <ul class="nav navbar-nav">
+                    <li><a href="javascript:void(0)">Link</a></li>
+                </ul> -->
 
-        {% if admin == "true"%}
-        <a href="/admin">Admin</a>
-        &nbsp;|&nbsp;
-        {% endif %}
-        <a href="/">Home</a>
-        &nbsp;|&nbsp;
-        {% if logged_in == null %}
-        <a href="/signup">Sign Up</a>
-        &nbsp;|&nbsp;
-        <a href="/login">Log In</a>
-        {% else %}
-        <a href="/createserver">Create Server</a>
-        &nbsp;|&nbsp;
-        <a href="/user/changepass">Change Password</a>
-        &nbsp;|&nbsp;
-        <a href="/logout">Log Out</a>
-        {% endif %}
-
+                <ul class="nav navbar-nav navbar-right">
+                    {% if admin == "true"%}
+                    <li><a href="javascript:void(0)">Admin</a></li>
+                    {% endif %}
+                    {% if logged_in is null %}
+                    <li><a href="/login">Log in</a></li>
+                    <li><a href="/signup">Sign Up</a></li>
+                    {% else %}
+                    <li><a>{{ username }}</a></li>
+                    <li><a href="/createserver">Create Server</a></li>
+                    <li><a href="/user/changepass">Change Password</a></li>
+                    <li class="divider"></li>
+                    <li><a href="/logout">Log Out</a></li>
+                    {% endif %}
+                </ul>
+            </div>
+        </div>
     </div>
 
     {% if messages %}
-    <div class="flash">{{ message }}</div>
+    <div class="alert alert-dismissible alert-info">
+        <button type="button" class="close" data-dismiss="alert">×</button>
+        <strong>{{ message }}</strong>
+    </div>
     {% endif %}
 
     {% block content %}{% endblock %}
 </div>
+</body>
+<script src="https://code.jquery.com/jquery-2.1.3.min.js"></script>
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/js/bootstrap.min.js"></script>
+<script src="https://cdn.jsdelivr.net/bootstrap.material-design/0.5.8/js/material.min.js"></script>
+<script src="https://cdn.jsdelivr.net/bootstrap.material-design/0.5.8/js/ripples.min.js"></script>
+<script src="main.js"></script>
+<script>$.material.init()</script>
 </html>

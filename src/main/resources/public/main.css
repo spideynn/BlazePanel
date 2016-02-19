@@ -11,32 +11,9 @@ body {
     width: 100%;
 }
 
-a, h1, h2 {
-    color: #377BA8;
-}
-
-h1, h2 {
-    font-family: 'Georgia', serif;
-    margin: 0;
-}
-
-h1 {
-    border-bottom: 2px solid gray;
-}
-
-h2 {
-    font-size: 1.2em;
-}
-
-h3 {
-    font-style: italic;
-    color: #377BA8;
-    font-size: 0.9em;
-}
-
 .page {
     margin: 2em auto;
-    width: 35em;
+    width: 70%;
     border: 5px solid gray;
     padding: 0.8em;
     background: #D3D3D3;
@@ -54,26 +31,6 @@ h3 {
 
 .entries li h2 {
     margin-left: -1em;
-}
-
-.nav {
-    text-align: right;
-    font-size: 1em;
-    padding: 0.3em;
-    margin-bottom: 1em;
-    background: #C2C2C2;
-    border: 2px solid gray;
-}
-
-.flash {
-    background: #CEE5F5;
-    padding: 0.5em;
-    border: 1px solid #AACBE2;
-}
-
-.error {
-    background: #F0D6D6;
-    padding: 0.5em;
 }
 
 .panel-index button {
