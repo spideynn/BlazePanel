@@ -1,4 +1,4 @@
-package net.spideynn.java.blazepanel;
+package net.spideynn.java.blazepanel.util;
 
 public class ServerInfo {
     private String name;

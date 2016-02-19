@@ -1,12 +1,11 @@
 package net.spideynn.java.blazepanel;
 
+import net.spideynn.java.blazepanel.util.Crypto;
+import net.spideynn.java.blazepanel.util.ServerInfo;
 import spark.ModelAndView;
 import spark.template.pebble.PebbleTemplateEngine;
 
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
-import java.io.OutputStream;
+import java.io.*;
 import java.sql.*;
 import java.util.HashMap;
 import java.util.Map;
@@ -21,11 +20,7 @@ public class Main {
     private static Properties prop = new Properties();
 
     public static void main(String[] args) {
-        try {
-            OutputStream output = new FileOutputStream("data/blazepanel.properties");
-        } catch (FileNotFoundException e) {
-            e.printStackTrace();
-        }
+        loadConfig();
 
         //Config.createJSONObjects();
         //Activity.startAllServers(); TODO: Load all servers, but do not start.
@@ -33,7 +28,7 @@ public class Main {
         staticFileLocation("/public");
         File dbFile = new File(DB_PATH);
         File dataFolder = new File("data");
-        port(30074);
+
         if (!dataFolder.exists()) {
             dataFolder.mkdir();
         }
@@ -52,6 +47,35 @@ public class Main {
             }
         }
         setupRoutes();
+    }
+
+    private static void loadConfig() {
+        try {
+            File propertiesFile = new File("data/blazepanel.properties");
+            if (propertiesFile.exists()) {
+                InputStream input = new FileInputStream("data/blazepanel.properties");
+                prop.load(input);
+                port(new Integer(prop.getProperty("port")));
+                if (prop.getProperty("panel.ip") != "0.0.0.0")
+                    ipAddress(prop.getProperty("panel.ip").toString());
+                if (prop.getProperty("panel.ssl") == "true")
+                    setSecure(prop.getProperty("panel.ssl.keystore"), prop.getProperty("panel.ssl.keystore"), null, null);
+                input.close();
+            } else {
+                OutputStream output = new FileOutputStream("data/blazepanel.properties");
+                prop.setProperty("panel.port", "30074");
+                prop.setProperty("panel.ssl", "false");
+
+                // Convert a x509 Cert and Key to PKCS12: https://stackoverflow.com/questions/906402/importing-an-existing-x509-certificate-and-private-key-in-java-keystore-to-use-i/8224863#8224863
+                prop.setProperty("panel.ssl.keystore", "none");
+                prop.setProperty("panel.ssl.keystore.pass", "none");
+                prop.setProperty("panel.ip", "0.0.0.0");
+                prop.store(output, null);
+                output.close();
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
     private static void setupRoutes() {

@@ -1,4 +1,4 @@
-package net.spideynn.java.blazepanel;
+package net.spideynn.java.blazepanel.util;
 
 import org.apache.commons.codec.binary.Base64;
 
