@@ -1,6 +1,6 @@
-{% extends "layout.html" %}
+{% extends "templates/app.pebble" %}
 
-{% block body %}
+{% block content %}
 
 <ul class="userinfo">
     <h1>Servers that {% username %} owns</h1>
@@ -11,6 +11,7 @@
             <h3>No servers yet!</h3>
             {% endfor %}
         </h3>
+    </h3>
 </ul>
 
 {% endblock %}

@@ -12,7 +12,7 @@
         <h3 class="panel-title">Sign Up</h3>
     </div>
     <div class="panel-body">
-        <form action="/login" method="post" id="login">
+        <form action="/signup" method="post" id="signup">
             <div class="form-group label-floating">
                 <label class="control-label" for="username">Username</label>
                 <input class="form-control" id="username" name="username" type="text">
@@ -35,7 +35,7 @@
 
             <!-- invisible button so enter works to submit -->
             <input type="submit" style="position: absolute; left: -9999px; width: 1px; height: 1px;" tabindex="-1"/>
-            <a onclick="document.forms['login'].submit(); return false;" class="btn btn-raised btn-default">Login</a>
+            <a onclick="document.forms['signup'].submit(); return false;" class="btn btn-raised btn-default">Sign up</a>
         </form>
     </div>
 </div>

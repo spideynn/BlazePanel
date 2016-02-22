@@ -3,14 +3,14 @@
     <script>update_values()</script>
 </head>
 
-{% block body %}
+{% block content %}
 
 <ul class="panel-index">
     <h1>Server Panel - ID: {{ sid }}</h1>
     <button type="button" onclick="startServer();">Start</button>
     <button type="button" onclick="stopServer();">Stop</button>
     <button type="button" onclick="restartServer();">Restart</button>
-    <h3 id="server-pid">PID: API is not responding.</h3>
+    <h3 id="server-pid">PID: Loading PID...</h3>
     <hr>
     <h3>Server Console:</h3>
     <textarea readonly style="background-color: #E6E6E6; resize: none;" rows="15"></textarea>
@@ -21,7 +21,7 @@
     <div class="progress" style="width:50%">
         <div id="cpu-progress" class="progress-bar progress-bar-info progress-bar-striped active" role="progressbar"
              aria-valuenow="100" aria-valuemin="0" aria-valuemax="100" style="width:100%">
-            API is not responding.
+            CPU Usage is loading...
         </div>
     </div>
 
@@ -29,7 +29,7 @@
     <div class="progress" style="width:50%">
         <div id="memory-progress" class="progress-bar progress-bar-info progress-bar-striped active" role="progressbar"
              aria-valuenow="100" aria-valuemin="0" aria-valuemax="100" style="width:100%">
-            API is not responding.
+            Memory Usage is loading...
         </div>
     </div>
 </ul>

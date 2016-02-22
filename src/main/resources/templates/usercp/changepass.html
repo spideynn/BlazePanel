@@ -4,9 +4,10 @@
 
 <ul class="passwordchange">
     <h2 style="text-style: underline;">Change Password:</h2>
-    <h3>If you were redirected here, then the administrator has forced you to change your password. <br/><br/>You are
-        logged in as: {{ session.username }}</h3>
-    <form action="{{ url_for('changepass') }}" method="post">
+    <h3>If you were redirected here, then the administrator has forced you to change your password.
+        <br/><br/>
+        Changing password for: {{ username }}</h3>
+    <form action="/user/changepass" method="post">
         <dl>
             <dt>Old Password:
             <dd><input type="password" name="oldpassword">

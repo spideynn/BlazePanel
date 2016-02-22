@@ -1,11 +1,15 @@
 package net.spideynn.java.blazepanel;
 
+import com.sun.management.OperatingSystemMXBean;
 import net.spideynn.java.blazepanel.util.Crypto;
 import net.spideynn.java.blazepanel.util.ServerInfo;
+import org.json.simple.JSONObject;
 import spark.ModelAndView;
 import spark.template.pebble.PebbleTemplateEngine;
 
+import javax.management.MBeanServerConnection;
 import java.io.*;
+import java.lang.management.ManagementFactory;
 import java.sql.*;
 import java.util.HashMap;
 import java.util.Map;
@@ -13,13 +17,26 @@ import java.util.Properties;
 
 import static spark.Spark.*;
 
+/**
+ * Main class for BlazePanel
+ */
 public class Main {
 
+    /**
+     * (Deprecated) Path to database file.
+     */ // TODO: Move to config file.
     private static final String DB_PATH = "data/blazepanel.db";
+    /** Main database connection for BlazePanel */
     private static Connection db;
+    /** Main properties file. */
     private static Properties prop = new Properties();
 
-    public static void main(String[] args) {
+    /**
+     * Main entry point.
+     *
+     * @param args - Program arguments (unused at the moment)
+     */
+    public static void main(final String[] args) {
         loadConfig();
 
         //Config.createJSONObjects();
@@ -49,13 +66,14 @@ public class Main {
         setupRoutes();
     }
 
+    /** Loads config variables before defining routes. */
     private static void loadConfig() {
         try {
             File propertiesFile = new File("data/blazepanel.properties");
             if (propertiesFile.exists()) {
                 InputStream input = new FileInputStream("data/blazepanel.properties");
                 prop.load(input);
-                port(new Integer(prop.getProperty("port")));
+                port(new Integer(prop.getProperty("panel.port")));
                 if (prop.getProperty("panel.ip") != "0.0.0.0")
                     ipAddress(prop.getProperty("panel.ip").toString());
                 if (prop.getProperty("panel.ssl") == "true")
@@ -78,6 +96,7 @@ public class Main {
         }
     }
 
+    /** Routes setup. */
     private static void setupRoutes() {
         before(((request1, response1) -> {
             if (!request1.uri().equals("/_api")) {
@@ -156,11 +175,46 @@ public class Main {
             return new ModelAndView(attr, "templates/signup.pebble");
         }, new PebbleTemplateEngine());
 
-        post("/signup", ((request, response) -> {
+        post("/signup", (request, response) -> {
             Map<String, Object> attr = new HashMap<>();
+            Statement statement = db.createStatement();
+            /*if (request.queryParams("username").equals("")) {
+                attr.put("error", "You forgot to enter a username.");
+                return new ModelAndView(attr, "templates/signup.pebble");
+            } else if (request.queryParams("password").equals("")) {
+                attr.put("error", "You forgot to enter a password.");
+                return new ModelAndView(attr, "templates/signup.pebble");
+            } else if (request.queryParams("confirmpassword").equals("")) {
+                attr.put("error", "You forgot to confirm your password.");
+                return new ModelAndView(attr, "templates/signup.pebble");
+            } else if (request.queryParams("email").equals("")) {
+                attr.put("error", "You forgot to enter an email.");
+                return new ModelAndView(attr, "templates/signup.pebble");
+            } */
 
-            return new ModelAndView(attr, "templates/signup.pebble");
-        }));
+            String username = request.queryParams("username");
+            String email = request.queryParams("email");
+            String pass = request.queryParams("password");
+            String confirmpass = request.queryParams("confirmpassword");
+
+            if (!pass.equals(confirmpass)) {
+                attr.put("error", "Passwords do not match.");
+                statement.close();
+                return new ModelAndView(attr, "templates/signup.pebble");
+            } else {
+                String password = Crypto.getSaltedHash(request.queryParams("password"));
+                statement.executeUpdate("INSERT INTO users (username, email, password, rank) VALUES ("
+                        + username + ", "
+                        + email + ", "
+                        + password + ", "
+                        + "1 ");
+                statement.close();
+                attr.put("message", "Signed up successfully. You can now log in.");
+                response.redirect("/");
+            }
+
+            return new ModelAndView(attr, "templates/error/500.pebble");
+        }, new PebbleTemplateEngine());
 
         get("/logout", (request, response) -> {
             Map<String, Object> attr = new HashMap<>();
@@ -175,36 +229,59 @@ public class Main {
             return new ModelAndView(attr, "templates/error/500.pebble");
         }, new PebbleTemplateEngine());
 
-        get("/_api", ((request, response) -> {
-            return "NYI.";
-        }));
-        // Catch all other unknown pages. TODO: Fix this to not affect static files.
-        /*
-        get("/*", (req, res) -> {
-            Map<String, Object> attr = new HashMap<>();
-            return new ModelAndView(attr, "templates/error/404.pebble");
-        }, new PebbleTemplateEngine()); */
+        get("/_api", (request, response) -> {
+            MBeanServerConnection mbsc = ManagementFactory.getPlatformMBeanServer();
 
-        setupExceptions();
+            OperatingSystemMXBean osMBean = ManagementFactory.newPlatformMXBeanProxy(
+                    mbsc, ManagementFactory.OPERATING_SYSTEM_MXBEAN_NAME, OperatingSystemMXBean.class);
+
+            long nanoBefore = System.nanoTime();
+            long cpuBefore = osMBean.getProcessCpuTime();
+
+            try {
+                Thread.sleep(1000);
+            } catch (InterruptedException ex) {
+                Thread.currentThread().interrupt();
+            }
+
+            long cpuAfter = osMBean.getProcessCpuTime();
+            long nanoAfter = System.nanoTime();
+
+            long percent;
+            if (nanoAfter > nanoBefore)
+                percent = ((cpuAfter - cpuBefore) * 100L) / (nanoAfter - nanoBefore);
+            else percent = 0;
+
+            JSONObject obj = new JSONObject();
+
+            obj.put("cpu", percent);
+            obj.put("ram", 0);
+            obj.put("pid", 0);
+
+            return obj.toJSONString();
+        });
     }
 
+    /** Setup exception catchers. */
     private static void setupExceptions() {
     }
 
-    /**
+    /*
      * Users API:
      * 1 - Normal User
      * 2 - Moderator
      * 3 - Admin
      * 4 - Super Admin
      */
+
+    /** Creates database if not found when starting. */
     private static void createDb() {
         System.out.println("[WEB-UI] Database does not exist, running first time setup...");
         String setup1 = "PRAGMA secure_delete = ON";
-        String setup2 = "CREATE TABLE users(id INTEGER PRIMARY KEY, username TEXT UNIQUE," +
-                "email TEXT UNIQUE, password TEXT, rank INT, tempPass INTEGER)";
-        String setup3 = "CREATE TABLE servers(sid INTEGER PRIMARY KEY AUTOINCREMENT UNIQUE, name TEXT," +
-                "owner TEXT, jartype TEXT, memory INT, customJartypePath STRING, worldName STRING)";
+        String setup2 = "CREATE TABLE users(id INTEGER PRIMARY KEY, username TEXT UNIQUE,"
+                + "email TEXT UNIQUE, password TEXT, rank INT, tempPass INTEGER)";
+        String setup3 = "CREATE TABLE servers(sid INTEGER PRIMARY KEY AUTOINCREMENT UNIQUE, name TEXT,"
+                + "owner TEXT, jartype TEXT, memory INT, customJartypePath STRING, worldName STRING)";
         try {
             Statement statement = db.createStatement();
             statement.executeUpdate(setup1);
@@ -227,25 +304,25 @@ public class Main {
 
                 String password = Crypto.getSaltedHash(passString);
 
-                statement.executeUpdate("INSERT INTO users (username, email, password, rank, tempPass) VALUES (" +
-                        username + ", " +
-                        email + ", " +
-                        password + ", " +
-                        "4, " +
-                        "0)");
+                statement.executeUpdate("INSERT INTO users (username, email, password, rank, tempPass) VALUES ("
+                        + username + ", "
+                        + email + ", "
+                        + password + ", "
+                        + "4, "
+                        + "0)");
                 statement.close();
 
             } else {
-                System.out.println("[SETUP] [WARNING] Could not access current console, setting defaults. " +
-                        "Be sure to change your password when you log in.");
+                System.out.println("[SETUP] [WARNING] Could not access current console, setting defaults. "
+                        + "Be sure to change your password when you log in.");
                 System.out.println("[SETUP] [WARNING] Username: admin");
                 System.out.println("[SETUP] [WARNING] Password: blazepanel");
                 System.out.println("[SETUP] [WARNING] Email: default@example.com");
-                statement.executeUpdate("INSERT INTO users (username, email, password, rank) VALUES (" +
-                        "'admin', " +
-                        "'default@example.com', '" +
-                        Crypto.getSaltedHash("blazepanel") + "', " +
-                        "4)");
+                statement.executeUpdate("INSERT INTO users (username, email, password, rank) VALUES ("
+                        + "'admin', "
+                        + "'default@example.com', '"
+                        + Crypto.getSaltedHash("blazepanel") + "', "
+                        + "4)");
                 statement.close();
             }
 
