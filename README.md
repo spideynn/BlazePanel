@@ -1,4 +1,4 @@
-# BlazeGoat-Panel 2.0
+# BlazePanel 2.0-alpha
 
 This software is currently in its alpha stages. Anything can happen if you try to use it at this stage, so be warned.
 
