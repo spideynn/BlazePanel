@@ -2,6 +2,13 @@
 
 {% block content %}
 <div class="panel panel-primary">
+
+    {% if messages %}
+    <div class="alert alert-dismissible alert-info">
+        <strong>{{ message }}</strong>
+    </div>
+    {% endif %}
+
     <div class="panel-heading">
         <h3 class="panel-title">Servers</h3>
     </div>

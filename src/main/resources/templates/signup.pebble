@@ -20,7 +20,7 @@
 
             <div class="form-group label-floating">
                 <label class="control-label" for="email">Email</label>
-                <input class="form-control" id="email" name="password" type="email">
+                <input class="form-control" id="email" name="email" type="email">
             </div>
 
             <div class="form-group label-floating">
@@ -30,7 +30,7 @@
 
             <div class="form-group label-floating">
                 <label class="control-label" for="confirmpassword">Confirm Password</label>
-                <input class="form-control" id="confirmpassword" name="password" type="password">
+                <input class="form-control" id="confirmpassword" name="confirmpassword" type="password">
             </div>
 
             <!-- invisible button so enter works to submit -->

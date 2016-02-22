@@ -177,8 +177,7 @@ public class Main {
 
         post("/signup", (request, response) -> {
             Map<String, Object> attr = new HashMap<>();
-            Statement statement = db.createStatement();
-            /*if (request.queryParams("username").equals("")) {
+            if (request.queryParams("username").equals("")) {
                 attr.put("error", "You forgot to enter a username.");
                 return new ModelAndView(attr, "templates/signup.pebble");
             } else if (request.queryParams("password").equals("")) {
@@ -190,7 +189,7 @@ public class Main {
             } else if (request.queryParams("email").equals("")) {
                 attr.put("error", "You forgot to enter an email.");
                 return new ModelAndView(attr, "templates/signup.pebble");
-            } */
+            }
 
             String username = request.queryParams("username");
             String email = request.queryParams("email");
@@ -199,16 +198,15 @@ public class Main {
 
             if (!pass.equals(confirmpass)) {
                 attr.put("error", "Passwords do not match.");
-                statement.close();
                 return new ModelAndView(attr, "templates/signup.pebble");
             } else {
-                String password = Crypto.getSaltedHash(request.queryParams("password"));
-                statement.executeUpdate("INSERT INTO users (username, email, password, rank) VALUES ("
-                        + username + ", "
-                        + email + ", "
-                        + password + ", "
-                        + "1 ");
-                statement.close();
+                String passHash = Crypto.getSaltedHash(request.queryParams("password"));
+                PreparedStatement prepare = db.prepareStatement("INSERT INTO users (username, email, password, rank) VALUES (?, ?, ?, 1)");
+                prepare.setString(1, username);
+                prepare.setString(2, email);
+                prepare.setString(3, passHash);
+                prepare.executeUpdate();
+                prepare.close();
                 attr.put("message", "Signed up successfully. You can now log in.");
                 response.redirect("/");
             }
