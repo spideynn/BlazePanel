@@ -8,6 +8,11 @@
           href="https://cdn.jsdelivr.net/bootstrap.material-design/0.5.8/css/bootstrap-material-design.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/bootstrap.material-design/0.5.8/css/ripples.min.css">
 
+    <style>
+        .nav > li > a {
+            padding: 8px 6px;
+        }
+    </style>
 </head>
 <body>
 <div class="page">
@@ -30,18 +35,23 @@
                 </ul> -->
 
                 <ul class="nav navbar-nav navbar-right">
-                    {% if admin == "true"%}
-                    <li><a href="javascript:void(0)">Admin</a></li>
-                    {% endif %}
+
                     {% if logged_in is null %}
                     <li><a href="/login">Log in</a></li>
                     <li><a href="/signup">Sign Up</a></li>
                     {% else %}
-                    <li><a>{{ username }}</a></li>
-                    <li><a href="/createserver">Create Server</a></li>
-                    <li><a href="/user/changepass">Change Password</a></li>
-                    <li class="divider"></li>
-                    <li><a href="/logout">Log Out</a></li>
+                    <li class="dropdown">
+                        <a href="bootstrap-elements.html" data-target="#" class="dropdown-toggle" data-toggle="dropdown"> {{ username }}
+                            <b class="caret"></b></a>
+                        <ul class="dropdown-menu">
+                            {% if userlevel == "4"%}
+                            <li><a href="javascript:void(0)">Admin</a></li>
+                            {% endif %}
+                            <li><a href="/createserver">Create Server</a></li>
+                            <li><a href="/user/changepass">Change Password</a></li>
+                            <li><a href="/logout">Log Out</a></li>
+                        </ul>
+                    </li>
                     {% endif %}
                 </ul>
             </div>
@@ -56,6 +66,5 @@
 <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/js/bootstrap.min.js"></script>
 <script src="https://cdn.jsdelivr.net/bootstrap.material-design/0.5.8/js/material.min.js"></script>
 <script src="https://cdn.jsdelivr.net/bootstrap.material-design/0.5.8/js/ripples.min.js"></script>
-<script src="main.js"></script>
 <script>$.material.init()</script>
 </html>

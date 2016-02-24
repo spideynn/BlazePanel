@@ -5,6 +5,7 @@ import net.spideynn.java.blazepanel.util.Crypto;
 import net.spideynn.java.blazepanel.util.ServerInfo;
 import org.json.simple.JSONObject;
 import spark.ModelAndView;
+import spark.Spark;
 import spark.template.pebble.PebbleTemplateEngine;
 
 import javax.management.MBeanServerConnection;
@@ -31,6 +32,9 @@ public class Main {
     /** Main properties file. */
     private static Properties prop = new Properties();
 
+    /** */
+    private static boolean setupRequired = false;
+
     /**
      * Main entry point.
      *
@@ -52,13 +56,23 @@ public class Main {
         if (!dbFile.exists()) {
             try {
                 db = DriverManager.getConnection("jdbc:sqlite:" + DB_PATH);
-                createDb();
+                setupRequired = true;
+                System.out.println("[WEB-UI] Database does not exist, running first time setup...");
+                System.out.println("[SETUP] Waiting for first time setup at /setup.");
             } catch (SQLException e) {
                 e.printStackTrace();
             }
         } else {
             try {
                 db = DriverManager.getConnection("jdbc:sqlite:" + DB_PATH);
+                Statement statement = db.createStatement();
+                try {
+                    ResultSet set = statement.executeQuery("SELECT * FROM users");
+                } catch (SQLException e) {
+                    setupRequired = true;
+                    System.out.println("[WEB-UI] Database does not contain schema, running first time setup...");
+                    System.out.println("[SETUP] Waiting for first time setup to be run.");
+                }
             } catch (SQLException e) {
                 e.printStackTrace();
             }
@@ -74,9 +88,9 @@ public class Main {
                 InputStream input = new FileInputStream("data/blazepanel.properties");
                 prop.load(input);
                 port(new Integer(prop.getProperty("panel.port")));
-                if (prop.getProperty("panel.ip") != "0.0.0.0")
-                    ipAddress(prop.getProperty("panel.ip").toString());
-                if (prop.getProperty("panel.ssl") == "true")
+                if (!prop.getProperty("panel.ip").equals("0.0.0.0"))
+                    ipAddress(prop.getProperty("panel.ip"));
+                if (prop.getProperty("panel.ssl").equals("true"))
                     setSecure(prop.getProperty("panel.ssl.keystore"), prop.getProperty("panel.ssl.keystore"), null, null);
                 input.close();
             } else {
@@ -98,15 +112,83 @@ public class Main {
 
     /** Routes setup. */
     private static void setupRoutes() {
-        before(((request1, response1) -> {
+        // Logging usage
+        before((request1, response1) -> {
             if (!request1.uri().equals("/_api")) {
                 System.out.println("[WEB-UI] IP " + request1.ip() + " accessed '" + request1.uri() + "' with UA '" + request1.userAgent() + "'");
             }
-        }));
+        });
+
+        before("/setup", (request, response) -> {
+            if (!setupRequired && request.uri().equals("/setup")) {
+                response.redirect("/");
+            }
+        });
+
+        get("/setup", (request, response) -> {
+            Map<String, Object> attr = new HashMap<>();
+
+            return new ModelAndView(attr, "templates/setup.pebble");
+        }, new PebbleTemplateEngine());
+
+        post("/setup", (request, response) -> {
+            Map<String, Object> attr = new HashMap<>();
+
+            createDb();
+
+            if (request.queryParams("username").equals("")) {
+                attr.put("error", "You forgot to enter the superadmin  username.");
+                return new ModelAndView(attr, "templates/signup.pebble");
+            } else if (request.queryParams("password").equals("")) {
+                attr.put("error", "You forgot to enter the superadmin password.");
+                return new ModelAndView(attr, "templates/signup.pebble");
+            } else if (request.queryParams("confirmpassword").equals("")) {
+                attr.put("error", "You forgot to confirm your superadmin password.");
+                return new ModelAndView(attr, "templates/signup.pebble");
+            } else if (request.queryParams("email").equals("")) {
+                attr.put("error", "You forgot to enter the superadmin email.");
+                return new ModelAndView(attr, "templates/signup.pebble");
+            }
+
+            String username = request.queryParams("username").toLowerCase();
+            String email = request.queryParams("email");
+            String pass = request.queryParams("password");
+            String confirmpass = request.queryParams("confirmpassword");
+
+            if (!pass.equals(confirmpass)) {
+                attr.put("error", "Passwords do not match.");
+                return new ModelAndView(attr, "templates/signup.pebble");
+            } else {
+                String passHash = Crypto.getSaltedHash(request.queryParams("password"));
+                PreparedStatement prepare = db.prepareStatement("INSERT INTO users (username, email, password, rank) VALUES (?, ?, ?, 4)");
+                prepare.setString(1, username);
+                prepare.setString(2, email);
+                prepare.setString(3, passHash);
+                try {
+                    prepare.executeUpdate();
+                } catch (SQLException e) {
+                    if (e.getSQLState().startsWith("23")) {
+                        attr.put("error", "A user with that email or username already exists.");
+                        return new ModelAndView(attr, "templates/signup.pebble");
+                    } else {
+                        e.printStackTrace();
+                    }
+                }
+                prepare.close();
+                attr.put("message", "Setup complete. You can now log in.");
+                setupRequired = false;
+                response.redirect("/");
+                return "";
+            }
+        });
 
         get("/", (request, response) -> {
             Map<String, Object> attr = new HashMap<>();
             Map<String, Object> servers = new HashMap<>();
+            if (setupRequired) {
+                response.redirect("/setup");
+            }
+
             Statement statement = db.createStatement();
             ResultSet rs = statement.executeQuery("SELECT name, owner, jartype, sid FROM servers ORDER BY sid DESC");
             statement.close();
@@ -117,13 +199,18 @@ public class Main {
             if (request.session().attribute("logged_in") != null && request.session().attribute("username") != null) {
                 attr.put("logged_in", request.session().attribute("logged_in"));
                 attr.put("username", request.session().attribute("username"));
+                attr.put("userlevel", request.session().attribute("userlevel"));
             }
-            return new ModelAndView(attr, "templates\\home.pebble");
+            return new ModelAndView(attr, "templates/home.pebble");
         }, new PebbleTemplateEngine());
 
         get("/login", (request, response) -> {
             Map<String, Object> attr = new HashMap<>();
             request.session(true);
+
+            if (setupRequired) {
+                response.redirect("/setup");
+            }
 
             return new ModelAndView(attr, "templates/login.pebble");
         }, new PebbleTemplateEngine());
@@ -141,7 +228,7 @@ public class Main {
                 attr.put("error", "You forgot to enter your password.");
                 return new ModelAndView(attr, "templates/login.pebble");
             }
-            String username = request.queryParams("username");
+            String username = request.queryParams("username").toLowerCase();
             String password = Crypto.getSaltedHash(request.queryParams("password"));
             ResultSet rs = statement.executeQuery("SELECT * FROM users");
             if (!rs.isBeforeFirst()) {
@@ -157,8 +244,11 @@ public class Main {
                     } else {
                         request.session().attribute("logged_in", "true");
                         request.session().attribute("username", username);
+                        request.session().attribute("userlevel", rs.getString("rank"));
                         attr.put("logged_in", true);
+                        attr.put("admin", true);
                         attr.put("username", username);
+                        attr.put("userlevel", rs.getString("rank"));
                         statement.close();
                         response.redirect("/");
                     }
@@ -171,7 +261,9 @@ public class Main {
 
         get("/signup", (request, response) -> {
             Map<String, Object> attr = new HashMap<>();
-
+            if (setupRequired) {
+                response.redirect("/setup");
+            }
             return new ModelAndView(attr, "templates/signup.pebble");
         }, new PebbleTemplateEngine());
 
@@ -191,7 +283,7 @@ public class Main {
                 return new ModelAndView(attr, "templates/signup.pebble");
             }
 
-            String username = request.queryParams("username");
+            String username = request.queryParams("username").toLowerCase();
             String email = request.queryParams("email");
             String pass = request.queryParams("password");
             String confirmpass = request.queryParams("confirmpassword");
@@ -216,14 +308,15 @@ public class Main {
 
         get("/logout", (request, response) -> {
             Map<String, Object> attr = new HashMap<>();
-            if (request.session().attribute("logged_in").equals("true") && request.session().attribute("username") != null) {
-                request.session().attribute("username", null);
-                request.session().attribute("logged_in", null);
+            request.session().attribute("username", null);
+            request.session().attribute("userlevel", null);
+            request.session().attribute("logged_in", null);
 
-                response.redirect("/");
-            } else {
-                return new ModelAndView(attr, "templates/error/403.pebble");
+            if (setupRequired) {
+                response.redirect("/setup");
             }
+            response.redirect("/");
+
             return new ModelAndView(attr, "templates/error/500.pebble");
         }, new PebbleTemplateEngine());
 
@@ -242,6 +335,9 @@ public class Main {
                 Thread.currentThread().interrupt();
             }
 
+            if (setupRequired) {
+                response.redirect("/setup");
+            }
             long cpuAfter = osMBean.getProcessCpuTime();
             long nanoAfter = System.nanoTime();
 
@@ -274,11 +370,10 @@ public class Main {
 
     /** Creates database if not found when starting. */
     private static void createDb() {
-        System.out.println("[WEB-UI] Database does not exist, running first time setup...");
         String setup1 = "PRAGMA secure_delete = ON";
-        String setup2 = "CREATE TABLE users(id INTEGER PRIMARY KEY, username TEXT UNIQUE,"
+        String setup2 = "CREATE TABLE IF NOT EXISTS users(id INTEGER PRIMARY KEY, username TEXT UNIQUE,"
                 + "email TEXT UNIQUE, password TEXT, rank INT, tempPass INTEGER)";
-        String setup3 = "CREATE TABLE servers(sid INTEGER PRIMARY KEY AUTOINCREMENT UNIQUE, name TEXT,"
+        String setup3 = "CREATE TABLE IF NOT EXISTS servers(sid INTEGER PRIMARY KEY AUTOINCREMENT UNIQUE, name TEXT,"
                 + "owner TEXT, jartype TEXT, memory INT, customJartypePath STRING, worldName STRING)";
         try {
             Statement statement = db.createStatement();
@@ -290,42 +385,6 @@ public class Main {
             e.printStackTrace();
         }
 
-        try {
-            Statement statement = db.createStatement();
-            if (System.console() != null) {
-                System.out.println("[SETUP] Please enter a username for the first Super Admin account.");
-                String username = System.console().readLine();
-                System.out.println("[SETUP] Please enter the email for the '" + username + "' account.");
-                String email = System.console().readLine();
-                System.out.println("[SETUP] Please enter the password for the '" + username + "' account");
-                String passString = new String(System.console().readPassword());
-
-                String password = Crypto.getSaltedHash(passString);
-
-                statement.executeUpdate("INSERT INTO users (username, email, password, rank, tempPass) VALUES ("
-                        + username + ", "
-                        + email + ", "
-                        + password + ", "
-                        + "4, "
-                        + "0)");
-                statement.close();
-
-            } else {
-                System.out.println("[SETUP] [WARNING] Could not access current console, setting defaults. "
-                        + "Be sure to change your password when you log in.");
-                System.out.println("[SETUP] [WARNING] Username: admin");
-                System.out.println("[SETUP] [WARNING] Password: blazepanel");
-                System.out.println("[SETUP] [WARNING] Email: default@example.com");
-                statement.executeUpdate("INSERT INTO users (username, email, password, rank) VALUES ("
-                        + "'admin', "
-                        + "'default@example.com', '"
-                        + Crypto.getSaltedHash("blazepanel") + "', "
-                        + "4)");
-                statement.close();
-            }
-
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+        setupRequired = true;
     }
 }
