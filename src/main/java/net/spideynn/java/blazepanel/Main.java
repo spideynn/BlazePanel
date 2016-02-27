@@ -366,9 +366,19 @@ public class Main {
 
         post("/servers/create", (request, response) -> {
             Map<String, Object> attr = new HashMap<>();
-            if (request.attribute("servername").equals("") ) {
+            String servername = request.attribute("servername");
+            String jartype = request.attribute("jartype");
 
+            if (servername.isEmpty() ) {
+                attr.put("error", "You forgot to fill in the server name.");
+                return new ModelAndView(attr, "templates/servercp/createserver.pebble");
+            } else if (jartype.isEmpty()) {
+                attr.put("error", "You forgot to select a server jar type.");
+                return new ModelAndView(attr, "templates/servercp/createserver.pebble");
             }
+
+            Statement statement = db.createStatement();
+
             return new ModelAndView(attr, "templates/error/500.pebble");
         }, new PebbleTemplateEngine());
     }
