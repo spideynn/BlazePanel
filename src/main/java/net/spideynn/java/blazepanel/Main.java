@@ -223,13 +223,10 @@ public class Main {
         post("/login", (request, response) -> {
             Map<String, Object> attr = new HashMap<>();
             Statement statement = db.createStatement();
-            if (request.queryParams("username").equals("") && request.queryParams("password").equals("")) {
-                attr.put("error", "You forgot to enter your username and your password.");
-                return new ModelAndView(attr, "templates/login.pebble");
-            } else if (request.queryParams("username").equals("")) {
+            if (request.queryParams("username").isEmpty()) {
                 attr.put("error", "You forgot to enter your username.");
                 return new ModelAndView(attr, "templates/login.pebble");
-            } else if (request.queryParams("password").equals("")) {
+            } else if (request.queryParams("password").isEmpty()) {
                 attr.put("error", "You forgot to enter your password.");
                 return new ModelAndView(attr, "templates/login.pebble");
             }
@@ -274,24 +271,25 @@ public class Main {
 
         post("/signup", (request, response) -> {
             Map<String, Object> attr = new HashMap<>();
-            if (request.queryParams("username").equals("")) {
-                attr.put("error", "You forgot to enter a username.");
-                return new ModelAndView(attr, "templates/signup.pebble");
-            } else if (request.queryParams("password").equals("")) {
-                attr.put("error", "You forgot to enter a password.");
-                return new ModelAndView(attr, "templates/signup.pebble");
-            } else if (request.queryParams("confirmpassword").equals("")) {
-                attr.put("error", "You forgot to confirm your password.");
-                return new ModelAndView(attr, "templates/signup.pebble");
-            } else if (request.queryParams("email").equals("")) {
-                attr.put("error", "You forgot to enter an email.");
-                return new ModelAndView(attr, "templates/signup.pebble");
-            }
 
             String username = request.queryParams("username").toLowerCase();
             String email = request.queryParams("email");
             String pass = request.queryParams("password");
             String confirmpass = request.queryParams("confirmpassword");
+
+            if (username.isEmpty()) {
+                attr.put("error", "You forgot to enter a username.");
+                return new ModelAndView(attr, "templates/signup.pebble");
+            } else if (pass.isEmpty()){
+                attr.put("error", "You forgot to enter a password.");
+                return new ModelAndView(attr, "templates/signup.pebble");
+            } else if (confirmpass.isEmpty()) {
+                attr.put("error", "You forgot to confirm your password.");
+                return new ModelAndView(attr, "templates/signup.pebble");
+            } else if (email.isEmpty()) {
+                attr.put("error", "You forgot to enter an email.");
+                return new ModelAndView(attr, "templates/signup.pebble");
+            }
 
             if (!pass.equals(confirmpass)) {
                 attr.put("error", "Passwords do not match.");
@@ -368,15 +366,11 @@ public class Main {
 
         post("/servers/create", (request, response) -> {
             Map<String, Object> attr = new HashMap<>();
-            if (request.attribute("") == "") {
+            if (request.attribute("servername").equals("") ) {
 
             }
-            return new ModelAndView(attr, "");
+            return new ModelAndView(attr, "templates/error/500.pebble");
         }, new PebbleTemplateEngine());
-    }
-
-    /** Setup exception catchers. */
-    private static void setupExceptions() {
     }
 
     /*
