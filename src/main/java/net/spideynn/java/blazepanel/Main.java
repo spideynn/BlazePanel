@@ -49,9 +49,13 @@ public class Main {
         staticFileLocation("/public");
         File dbFile = new File(DB_PATH);
         File dataFolder = new File("data");
+        File serverFolder = new File("data/servers");
 
         if (!dataFolder.exists()) {
             dataFolder.mkdir();
+        }
+        if (!serverFolder.exists()) {
+            serverFolder.mkdir();
         }
         if (!dbFile.exists()) {
             try {
@@ -94,6 +98,7 @@ public class Main {
                     setSecure(prop.getProperty("panel.ssl.keystore"), prop.getProperty("panel.ssl.keystore"), null, null);
                 input.close();
             } else {
+                propertiesFile.createNewFile();
                 OutputStream output = new FileOutputStream("data/blazepanel.properties");
                 prop.setProperty("panel.port", "30074");
                 prop.setProperty("panel.ssl", "false");
@@ -354,6 +359,20 @@ public class Main {
 
             return obj.toJSONString();
         });
+
+        get("/servers/create", (request, response) -> {
+            Map<String, Object> attr = new HashMap<>();
+
+            return new ModelAndView(attr, "templates/servercp/createserver.pebble");
+        }, new PebbleTemplateEngine());
+
+        post("/servers/create", (request, response) -> {
+            Map<String, Object> attr = new HashMap<>();
+            if (request.attribute("") == "") {
+
+            }
+            return new ModelAndView(attr, "");
+        }, new PebbleTemplateEngine());
     }
 
     /** Setup exception catchers. */

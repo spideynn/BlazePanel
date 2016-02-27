@@ -1,0 +1,40 @@
+{% extends "templates/app.pebble" %}
+
+{% block content %}
+
+{% if error is not null %}
+<div class="alert alert-danger">
+    <strong>Error:</strong><br>{{ error }}
+</div>
+{% endif %}
+<div class="panel panel-primary">
+    <div class="panel-heading">
+        <h3 class="panel-title">Server Creation</h3>
+    </div>
+    <div class="panel-body">
+        <form action="/server/create" method="post" id="create">
+            <div class="form-group label-floating">
+                <label class="control-label" for="servername">Server Name</label>
+                <input class="form-control" id="servername" name="servername" type="text">
+            </div>
+            <div class="radio radio-primary">
+                <label>
+                    <input name="optionsRadios" id="optionsRadios1" value="spigot" checked type="radio">
+                    Spigot 1.8
+                </label>
+            </div>
+            <div class="radio radio-primary">
+                <label>
+                    <input name="optionsRadios" id="optionsRadios2" value="custom" type="radio">
+                    Custom
+                </label>
+            </div>
+
+            <!-- invisible button so enter works to submit -->
+            <input type="submit" style="position: absolute; left: -9999px; width: 1px; height: 1px;" tabindex="-1"/>
+            <a onclick="document.forms['create'].submit(); return false;" class="btn btn-raised btn-default">Create Server</a>
+        </form>
+    </div>
+</div>
+
+{% endblock %}
